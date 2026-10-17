@@ -14,6 +14,9 @@ interface MemberStatus {
   lat: number | null;
   lng: number | null;
   speed: number | null;
+  etaMinutes?: number | null;
+  bearingDegrees?: number | null;
+  locationJammed?: boolean;
   isWithin500m: boolean;
   status: 'on_the_way' | 'arrived';
   updatedAt: string;

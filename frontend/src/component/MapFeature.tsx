@@ -2,15 +2,20 @@ import { useEffect, useState } from 'react'
 import '../App.css'
 import DestinationMap from './DestinationMap'
 import DestinationSettings from './DestinationSettings'
+import MemberLocationSharing from './MemberLocationSharing'
 import type { MapApiClient } from './MapApiClient'
 import RoomLayout from './RoomLayout'
 import type { Destination, MapState } from './mapTypes'
 
 interface MapFeatureProps {
   apiClient: MapApiClient
+  participant?: {
+    id: string
+    name: string
+  }
 }
 
-export default function MapFeature({ apiClient }: MapFeatureProps) {
+export default function MapFeature({ apiClient, participant }: MapFeatureProps) {
   const [mapState, setMapState] = useState<MapState | null>(null)
   const [connectionError, setConnectionError] = useState(false)
   const [isSavingDestination, setIsSavingDestination] = useState(false)
@@ -101,6 +106,13 @@ export default function MapFeature({ apiClient }: MapFeatureProps) {
           onPickDestination={pickDestinationOnMap}
         />
       }
-    />
+    >
+      <MemberLocationSharing
+        apiClient={apiClient}
+        destination={destination}
+        userId={participant?.id}
+        userName={participant?.name}
+      />
+    </RoomLayout>
   )
 }
