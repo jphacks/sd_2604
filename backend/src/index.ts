@@ -1,5 +1,5 @@
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 
 const app = new Hono()
 app.use('/api/*', cors())
@@ -187,6 +187,33 @@ app.post('/api/rooms/:roomId/delay', async (c) => {
   return c.json({
     success: true,
     members: Object.values(room.members),
+  });
+});
+
+app.put('/api/destination', async (c) => {
+  const body = await c.req.json<{ lat: unknown; lng: unknown }>();
+
+  if (
+    typeof body.lat !== 'number' ||
+    typeof body.lng !== 'number' ||
+    !Number.isFinite(body.lat) ||
+    !Number.isFinite(body.lng) ||
+    body.lat < -90 ||
+    body.lat > 90 ||
+    body.lng < -180 ||
+    body.lng > 180
+  ) {
+    return c.json({ success: false, error: 'Invalid destination coordinates' }, 400);
+  }
+
+  destination = { lat: body.lat, lng: body.lng };
+  return c.json({ success: true, destination });
+});
+
+app.get('/api/map-state', (c) => {
+  return c.json({
+    destination,
+    members: Object.values(membersStore),
   });
 });
 

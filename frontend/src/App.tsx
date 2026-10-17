@@ -1,51 +1,13 @@
-import { useState } from 'react';
-import Map, { Marker } from 'react-map-gl/maplibre';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { useState } from 'react'
+import { MapApiClient } from './component/MapApiClient'
+import MapFeature from './component/MapFeature'
 
-// 集合場所（例: 仙台駅）
-const DESTINATION = {
-  name: "仙台駅 ペデストリアンデッキ",
-  lat: 38.2601,
-  lng: 140.8824,
-};
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8787'
 
 export default function App() {
-  const [viewState, setViewState] = useState({
-    longitude: DESTINATION.lng,
-    latitude: DESTINATION.lat,
-    zoom: 14,
-  });
+	const [apiClient] = useState(() => new MapApiClient(apiBaseUrl))
 
-  return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Map
-        {...viewState}
-        onMove={(evt) => setViewState(evt.viewState)}
-        mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
-      >
-        {/* 目的地ピン */}
-        <Marker longitude={DESTINATION.lng} latitude={DESTINATION.lat} anchor="bottom">
-          <div style={{
-            background: '#ff4757', color: 'white', padding: '8px 12px',
-            borderRadius: '20px', fontWeight: 'bold', fontSize: '14px',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
-          }}>
-            📍 {DESTINATION.name}
-          </div>
-        </Marker>
-      </Map>
-
-      {/* 視点を目的地に戻すボタン */}
-      <button
-        onClick={() => setViewState({ longitude: DESTINATION.lng, latitude: DESTINATION.lat, zoom: 14 })}
-        style={{
-          position: 'absolute', top: 20, right: 20, zIndex: 10,
-          padding: '10px 16px', background: 'white', border: '1px solid #ccc',
-          borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
-        }}
-      >
-        🎯 目的地を中心に表示
-      </button>
-    </div>
-  );
+	return (
+		<MapFeature apiClient={apiClient} />
+	)
 }
