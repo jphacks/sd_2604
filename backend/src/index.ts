@@ -2,11 +2,11 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 const app = new Hono()
-
-// フロントエンドからのCORSリクエストを許可
 app.use('/api/*', cors())
 
-// メンバーの状態をメモリ上で保持（ハッカソン用の爆速構成）
+app.get('/', (c) => c.text('Backend API is running!'))
+
+// メンバーの状態
 interface MemberStatus {
   id: string;
   name: string;
@@ -22,12 +22,23 @@ interface MemberStatus {
   updatedAt: string;
 }
 
-const membersStore: Record<string, MemberStatus> = {};
-let destination: { lat: number; lng: number } | null = null;
+// ルーム構造
+interface Room {
+  id: string;
+  title: string;        // 例: "JPHACKS打ち上げ"
+  targetName: string;   // 例: "仙台駅 ペデストリアンデッキ"
+  targetLat: number;    // 38.2601
+  targetLng: number;    // 140.8824
+  meetingTime: string;  // "2026-10-17T19:00:00"
+  members: Record<string, MemberStatus>;
+}
 
-// 2点間の距離(メートル)計算関数 (Haversineの公式)
+// メモリ内ストア (roomId -> Room)
+const roomsStore: Record<string, Room> = {};
+
+// 距離計算 (Haversine)
 function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371e3; // 地球の半径(m)
+  const R = 6371e3;
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -37,116 +48,149 @@ function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: numbe
             Math.cos(φ1) * Math.cos(φ2) *
             Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
   return R * c;
 }
 
-// 1. 位置情報の同期 & 500m判定API
-app.post('/api/location/sync', async (c) => {
+// --------------------------------------------------
+// 1. 新規ルーム作成 API
+// --------------------------------------------------
+app.post('/api/rooms', async (c) => {
   const body = await c.req.json<{
-    userId: string;
-    userName: string;
-    userLat: number;
-    userLng: number;
-    speed: number | null;
+    title: string;
+    targetName: string;
     targetLat: number;
     targetLng: number;
-    etaMinutes?: number | null;
-    bearingDegrees?: number | null;
-    locationJammed?: boolean;
+    meetingTime: string;
   }>();
 
-  if (
-    typeof body.userId !== 'string' || !body.userId.trim() ||
-    typeof body.userName !== 'string' || !body.userName.trim() ||
-    ![body.userLat, body.userLng, body.targetLat, body.targetLng].every(Number.isFinite) ||
-    body.userLat < -90 || body.userLat > 90 ||
-    body.targetLat < -90 || body.targetLat > 90 ||
-    body.userLng < -180 || body.userLng > 180 ||
-    body.targetLng < -180 || body.targetLng > 180
-  ) {
-    return c.json({ success: false, error: 'Invalid location sync payload' }, 400);
+  // 6桁のランダムID生成 (例: "a1b2c3")
+  const roomId = Math.random().toString(36).substring(2, 8);
+
+  const newRoom: Room = {
+    id: roomId,
+    title: body.title,
+    targetName: body.targetName,
+    targetLat: body.targetLat,
+    targetLng: body.targetLng,
+    meetingTime: body.meetingTime,
+    members: {},
+  };
+
+  roomsStore[roomId] = newRoom;
+
+  return c.json({ success: true, roomId, room: newRoom });
+});
+
+// --------------------------------------------------
+// 2. ルーム情報取得 API (アクセスしたとき用)
+// --------------------------------------------------
+app.get('/api/rooms/:roomId', (c) => {
+  const roomId = c.req.param('roomId');
+  const room = roomsStore[roomId];
+
+  if (!room) {
+    return c.json({ success: false, message: 'Room not found' }, 404);
   }
 
-  const locationJammed = body.locationJammed === true;
-  const distance = locationJammed
-    ? null
-    : getDistanceMetres(body.userLat, body.userLng, body.targetLat, body.targetLng);
-  const isWithin500m = distance !== null && distance <= 500;
-  const etaMinutes = typeof body.etaMinutes === 'number' && Number.isFinite(body.etaMinutes) && body.etaMinutes >= 0
-    ? Math.min(Math.round(body.etaMinutes), 1440)
-    : null;
-  const speed = typeof body.speed === 'number' && Number.isFinite(body.speed) && body.speed >= 0 && body.speed <= 20
-    ? body.speed
-    : null;
-  const bearingDegrees = typeof body.bearingDegrees === 'number' && Number.isFinite(body.bearingDegrees)
-    ? ((Math.round(body.bearingDegrees) % 360) + 360) % 360
-    : null;
-  destination = { lat: body.targetLat, lng: body.targetLng };
-
-  const current = membersStore[body.userId] || {
-    id: body.userId,
-    name: body.userName,
-    delayMinutes: 0,
-    status: 'on_the_way',
-  };
-
-  // 500m外は通常nullにし、端末でジャミングされた概算座標だけ保存する
-  membersStore[body.userId] = {
-    ...current,
-    name: body.userName,
-    lat: isWithin500m || locationJammed ? body.userLat : null,
-    lng: isWithin500m || locationJammed ? body.userLng : null,
-    speed,
-    etaMinutes,
-    bearingDegrees,
-    locationJammed,
-    isWithin500m,
-    updatedAt: new Date().toISOString(),
-  };
-
   return c.json({
-    success: true,
-    distanceMetres: distance === null ? null : Math.round(distance),
-    isWithin500m,
-    allMembers: Object.values(membersStore),
+    ...room,
+    members: Object.values(room.members), // 配列にして返す
   });
 });
 
-// 2. ワンタップ遅延更新API (+5分, +15分 など)
-app.post('/api/delay', async (c) => {
-  const { userId, userName, addMinutes } = await c.req.json<{
+// --------------------------------------------------
+// 3. 参加（名前登録） API
+// --------------------------------------------------
+app.post('/api/rooms/:roomId/join', async (c) => {
+  const roomId = c.req.param('roomId');
+  const { userName } = await c.req.json<{ userName: string }>();
+
+  const room = roomsStore[roomId];
+  if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
+
+  // ランダムなユーザーID作成
+  const userId = 'user_' + Math.random().toString(36).substring(2, 9);
+
+  const newMember: MemberStatus = {
+    id: userId,
+    name: userName,
+    delayMinutes: 0,
+    lat: null,
+    lng: null,
+    speed: null,
+    isWithin500m: false,
+    status: 'on_the_way',
+    updatedAt: new Date().toISOString(),
+  };
+
+  room.members[userId] = newMember;
+
+  return c.json({
+    success: true,
+    userId,
+    userName,
+    room: {
+      ...room,
+      members: Object.values(room.members),
+    },
+  });
+});
+
+// --------------------------------------------------
+// 4. 位置情報同期 & 500m判定 API
+// --------------------------------------------------
+app.post('/api/rooms/:roomId/sync', async (c) => {
+  const roomId = c.req.param('roomId');
+  const body = await c.req.json<{
     userId: string;
-    userName: string;
-    addMinutes: number;
+    userLat: number;
+    userLng: number;
+    speed: number | null;
   }>();
 
-  if (!membersStore[userId]) {
-    membersStore[userId] = {
-      id: userId,
-      name: userName,
-      delayMinutes: 0,
-      lat: null,
-      lng: null,
-      speed: null,
-      isWithin500m: false,
-      status: 'on_the_way',
+  const room = roomsStore[roomId];
+  if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
+
+  const distance = getDistanceMetres(body.userLat, body.userLng, room.targetLat, room.targetLng);
+  const isWithin500m = distance <= 500;
+
+  if (room.members[body.userId]) {
+    room.members[body.userId] = {
+      ...room.members[body.userId],
+      lat: isWithin500m ? body.userLat : null, // 500m外なら隠す
+      lng: isWithin500m ? body.userLng : null,
+      speed: body.speed,
+      isWithin500m,
       updatedAt: new Date().toISOString(),
     };
   }
 
-  membersStore[userId].delayMinutes += addMinutes;
-
   return c.json({
     success: true,
-    delayMinutes: membersStore[userId].delayMinutes,
-    allMembers: Object.values(membersStore),
+    distanceMetres: Math.round(distance),
+    isWithin500m,
+    members: Object.values(room.members),
   });
 });
 
-// 3. 全メンバー情報取得API（一覧表示用）
-app.get('/api/members', (c) => {
-  return c.json(Object.values(membersStore));
+// --------------------------------------------------
+// 5. ワンタップ遅延更新 API (+5分, +15分など)
+// --------------------------------------------------
+app.post('/api/rooms/:roomId/delay', async (c) => {
+  const roomId = c.req.param('roomId');
+  const { userId, addMinutes } = await c.req.json<{ userId: string; addMinutes: number }>();
+
+  const room = roomsStore[roomId];
+  if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
+
+  if (room.members[userId]) {
+    room.members[userId].delayMinutes += addMinutes;
+  }
+
+  return c.json({
+    success: true,
+    members: Object.values(room.members),
+  });
 });
 
 app.put('/api/destination', async (c) => {
