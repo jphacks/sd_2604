@@ -65,7 +65,7 @@ export default function MemberLocationSharing({
   userName = '自分',
 }: MemberLocationSharingProps) {
   const [participantId] = useState(userId ?? getParticipantId)
-  const [participantName, setParticipantName] = useState(() => getStoredParticipantName(userName || '自分'))
+  const [participantName] = useState(() => getStoredParticipantName(userName || '自分'))
   const [isSharing, setIsSharing] = useState(false)
   const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
   const [locationStatus, setLocationStatus] = useState<OwnLocationStatus | null>(null)
@@ -73,18 +73,6 @@ export default function MemberLocationSharing({
   const jamOutsideRadiusRef = useRef(jamOutsideRadius)
   const destinationLat = destination?.lat
   const destinationLng = destination?.lng
-
-  useEffect(() => {
-    const nextName = (userName || '自分').trim()
-    if (nextName) {
-      setParticipantName(nextName)
-      try {
-        localStorage.setItem('meetpoint.participant-name', nextName)
-      } catch {
-        // ignore storage failures
-      }
-    }
-  }, [userName])
 
   const displayName = participantName.trim() || '自分'
 
@@ -179,16 +167,6 @@ export default function MemberLocationSharing({
     }
   }, [apiClient, destinationLat, destinationLng, displayName, isSharing, participantId, roomId])
 
-  const handleNameChange = (nextName: string) => {
-    const trimmed = nextName.trimStart().slice(0, 24)
-    setParticipantName(trimmed)
-    try {
-      localStorage.setItem('meetpoint.participant-name', trimmed || '自分')
-    } catch {
-      // ignore storage failures
-    }
-  }
-
   const toggleSharing = () => {
     if (!destination) {
       setErrorMessage('先に目的地を設定してください。')
@@ -219,13 +197,7 @@ export default function MemberLocationSharing({
 
         <label className="location-sharing__name-field">
           <span>名前</span>
-          <input
-            type="text"
-            value={participantName}
-            onChange={(event) => handleNameChange(event.target.value)}
-            maxLength={24}
-            placeholder="自分"
-          />
+          <input type="text" value={participantName} readOnly aria-label="参加者名" />
         </label>
 
         {isSharing && locationStatus && (

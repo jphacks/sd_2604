@@ -3,6 +3,11 @@ export interface Destination {
   lng: number
 }
 
+export interface DestinationInput extends Destination {
+  name?: string | null
+  address?: string | null
+}
+
 export interface MemberStatus {
   id: string
   name: string
@@ -35,6 +40,8 @@ export interface LocationSyncPayload {
 
 export interface MapState {
   destination: Destination | null
+  destinationName?: string | null
+  destinationAddress?: string | null
   meetingTime: string | null
   members: MemberStatus[]
 }

@@ -7,7 +7,7 @@ import MeetingTimeSettings from './MeetingTimeSettings'
 import MemberLocationSharing from './MemberLocationSharing'
 import MemberStatusPanel from './MemberStatusPanel'
 import RoomLayout from './RoomLayout'
-import type { Destination, MapState } from './mapTypes'
+import type { Destination, DestinationInput, MapState } from './mapTypes'
 
 interface MapFeatureProps {
   apiClient: MapApiClient
@@ -35,6 +35,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
   const [mapPickedPoint, setMapPickedPoint] = useState<Destination | null>(null)
   const [mapPickVersion, setMapPickVersion] = useState(0)
   const [viewRevision, setViewRevision] = useState(0)
+  const [destinationLocked, setDestinationLocked] = useState(false)
 
   useEffect(() => {
     let disposed = false
@@ -60,21 +61,34 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
     }
   }, [apiClient, roomId])
 
+  useEffect(() => {
+    setDestinationLocked(Boolean(mapState?.destination && (mapState.destinationName || mapState.destinationAddress)))
+  }, [mapState])
+
   const destination = previewDestination ?? mapState?.destination ?? null
+  const destinationName = mapState?.destinationName ?? roomInfo?.meetingPlace ?? '目的地'
+  const destinationAddress = mapState?.destinationAddress ?? null
   const meetingTime = roomInfo?.meetingTime ?? mapState?.meetingTime ?? null
   const roomTitle = roomInfo?.title ?? '待ち合わせ'
-  const destinationLabel = roomInfo?.meetingPlace ?? (destination
-    ? `${destination.lat.toFixed(5)}, ${destination.lng.toFixed(5)}`
-    : '目的地未設定')
+  const destinationLabel = destinationAddress
+    ? `${destinationName} / ${destinationAddress}`
+    : destinationName && destinationName.trim()
+      ? destinationName
+      : destination
+        ? `${destination.lat.toFixed(5)}, ${destination.lng.toFixed(5)}`
+        : '目的地未設定'
 
-  const saveDestination = async (nextDestination: Destination) => {
+  const saveDestination = async (nextDestination: DestinationInput) => {
     setIsSavingDestination(true)
     setDestinationSaveError(null)
 
     try {
       const updatedDestination = await apiClient.updateDestination(roomId, nextDestination)
+      setDestinationLocked(true)
       setMapState((current) => ({
-        destination: updatedDestination,
+        destination: { lat: updatedDestination.lat, lng: updatedDestination.lng },
+        destinationName: updatedDestination.name ?? current?.destinationName ?? null,
+        destinationAddress: updatedDestination.address ?? current?.destinationAddress ?? null,
         meetingTime: current?.meetingTime ?? null,
         members: current?.members ?? [],
       }))
@@ -96,6 +110,8 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
       const updatedMeetingTime = await apiClient.updateMeetingTime(roomId, nextMeetingTime)
       setMapState((current) => ({
         destination: current?.destination ?? null,
+        destinationName: current?.destinationName ?? null,
+        destinationAddress: current?.destinationAddress ?? null,
         meetingTime: updatedMeetingTime,
         members: current?.members ?? [],
       }))
@@ -133,11 +149,14 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           />
           <DestinationSettings
             destination={destination}
+            destinationName={mapState?.destinationName ?? roomInfo?.meetingPlace ?? null}
+            destinationAddress={mapState?.destinationAddress ?? null}
             isSaving={isSavingDestination}
             saveError={destinationSaveError}
             isPickingOnMap={isPickingOnMap}
             mapPickedPoint={mapPickedPoint}
             mapPickVersion={mapPickVersion}
+            isLocked={destinationLocked}
             onPickingChange={setIsPickingOnMap}
             onPreviewChange={setPreviewDestination}
             onSave={saveDestination}

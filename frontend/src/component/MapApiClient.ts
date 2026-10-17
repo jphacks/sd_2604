@@ -1,4 +1,4 @@
-import type { Destination, LocationSyncPayload, MapState } from './mapTypes'
+import type { Destination, DestinationInput, LocationSyncPayload, MapState } from './mapTypes'
 
 export interface CreateRoomRequest {
   title: string
@@ -6,6 +6,8 @@ export interface CreateRoomRequest {
   targetLat: number
   targetLng: number
   meetingTime: string
+  destinationName?: string | null
+  destinationAddress?: string | null
 }
 
 export interface CreateRoomResponse {
@@ -56,6 +58,8 @@ export class MapApiClient {
 
     return {
       destination: this.validateDestination(value.destination),
+      destinationName: typeof value.destinationName === 'string' ? value.destinationName : null,
+      destinationAddress: typeof value.destinationAddress === 'string' ? value.destinationAddress : null,
       meetingTime: typeof value.meetingTime === 'string' && Number.isFinite(Date.parse(value.meetingTime))
         ? value.meetingTime
         : null,
@@ -63,7 +67,7 @@ export class MapApiClient {
     }
   }
 
-  async updateDestination(roomId: string | null | undefined, destination: Destination): Promise<Destination> {
+  async updateDestination(roomId: string | null | undefined, destination: DestinationInput): Promise<DestinationInput> {
     const endpoint = roomId
       ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/destination`
       : `${this.baseUrl}/api/destination`
@@ -74,11 +78,15 @@ export class MapApiClient {
     })
     if (!response.ok) throw new Error(`Destination update failed: ${response.status}`)
 
-    const value = (await response.json()) as { destination?: unknown }
+    const value = (await response.json()) as { destination?: unknown; destinationName?: unknown; destinationAddress?: unknown }
     const updatedDestination = this.validateDestination(value.destination)
     if (!updatedDestination) throw new Error('Invalid destination response')
 
-    return updatedDestination
+    return {
+      ...updatedDestination,
+      name: typeof value.destinationName === 'string' ? value.destinationName : null,
+      address: typeof value.destinationAddress === 'string' ? value.destinationAddress : null,
+    }
   }
 
   async updateMeetingTime(roomId: string | null | undefined, meetingTime: string | null): Promise<string | null> {

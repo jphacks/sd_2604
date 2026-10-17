@@ -1,7 +1,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-const app = new Hono();
+interface CloudflareBindings {
+  meetpoint_rooms?: KVNamespace;
+}
+
+const app = new Hono<{ Bindings: CloudflareBindings }>();
 app.use('*', cors());
 
 app.get('/', (c) => c.text('Backend API is running!'));
@@ -26,6 +30,8 @@ interface Room {
   id: string;
   title: string;
   targetName: string;
+  destinationName: string | null;
+  destinationAddress: string | null;
   targetLat: number;
   targetLng: number;
   meetingTime: string | null;
@@ -36,6 +42,26 @@ const roomsStore: Record<string, Room> = {};
 const membersStore: Record<string, MemberStatus> = {};
 let destination: { lat: number; lng: number } | null = null;
 let meetingTime: string | null = null;
+
+async function getRoomById(roomId: string, env?: CloudflareBindings): Promise<Room | undefined> {
+  if (env?.meetpoint_rooms) {
+    const stored = await env.meetpoint_rooms.get(`room:${roomId}`);
+    if (stored) {
+      return JSON.parse(stored) as Room;
+    }
+    return undefined;
+  }
+
+  return roomsStore[roomId];
+}
+
+async function saveRoom(room: Room, env?: CloudflareBindings): Promise<void> {
+  roomsStore[room.id] = room;
+
+  if (env?.meetpoint_rooms) {
+    await env.meetpoint_rooms.put(`room:${room.id}`, JSON.stringify(room));
+  }
+}
 
 function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3;
@@ -59,17 +85,21 @@ app.post('/api/rooms', async (c) => {
       targetLat: number;
       targetLng: number;
       meetingTime: string;
+      destinationName?: string | null;
+      destinationAddress?: string | null;
     }>();
 
     let roomId = '';
     do {
       roomId = crypto.randomUUID().split('-')[0];
-    } while (roomsStore[roomId]);
+    } while (await getRoomById(roomId, c.env));
 
     const newRoom: Room = {
       id: roomId,
       title: body.title || '待ち合わせ',
       targetName: body.targetName || '目的地',
+      destinationName: body.destinationName?.trim() || body.targetName?.trim() || '目的地',
+      destinationAddress: body.destinationAddress?.trim() || null,
       targetLat: body.targetLat,
       targetLng: body.targetLng,
       meetingTime: body.meetingTime,
@@ -77,15 +107,16 @@ app.post('/api/rooms', async (c) => {
     };
 
     roomsStore[roomId] = newRoom;
+    await saveRoom(newRoom, c.env);
     return c.json({ success: true, roomId, room: newRoom });
   } catch {
     return c.json({ success: false, error: 'Invalid payload' }, 400);
   }
 });
 
-app.get('/api/rooms/:roomId', (c) => {
+app.get('/api/rooms/:roomId', async (c) => {
   const roomId = c.req.param('roomId');
-  const room = roomsStore[roomId];
+  const room = await getRoomById(roomId, c.env);
 
   if (!room) {
     return c.json({ success: false, message: 'Room not found' }, 404);
@@ -101,7 +132,7 @@ app.post('/api/rooms/:roomId/join', async (c) => {
   const roomId = c.req.param('roomId');
   const body = await c.req.json<{ userId?: string; userName?: string }>();
 
-  const room = roomsStore[roomId];
+  const room = await getRoomById(roomId, c.env);
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
   const userId = body.userId || 'user_' + Math.random().toString(36).substring(2, 9);
@@ -125,6 +156,7 @@ app.post('/api/rooms/:roomId/join', async (c) => {
   };
 
   room.members[userId] = newMember;
+  await saveRoom(room, c.env);
 
   return c.json({
     success: true,
@@ -153,7 +185,7 @@ app.post('/api/rooms/:roomId/sync', async (c) => {
     targetLng?: number;
   }>();
 
-  const room = roomsStore[roomId];
+  const room = await getRoomById(roomId, c.env);
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
   const targetLat = body.targetLat ?? room.targetLat;
@@ -191,6 +223,7 @@ app.post('/api/rooms/:roomId/sync', async (c) => {
     status: distance <= 10 ? 'arrived' : 'on_the_way',
     updatedAt: new Date().toISOString(),
   };
+  await saveRoom(room, c.env);
 
   return c.json({
     success: true,
@@ -208,11 +241,12 @@ app.post('/api/rooms/:roomId/delay', async (c) => {
   const roomId = c.req.param('roomId');
   const { userId, addMinutes } = await c.req.json<{ userId: string; addMinutes: number }>();
 
-  const room = roomsStore[roomId];
+  const room = await getRoomById(roomId, c.env);
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
   if (room.members[userId]) {
     room.members[userId].delayMinutes += addMinutes;
+    await saveRoom(room, c.env);
   }
 
   return c.json({
@@ -268,10 +302,10 @@ app.post('/api/location/sync', async (c) => {
 
 app.put('/api/rooms/:roomId/destination', async (c) => {
   const roomId = c.req.param('roomId');
-  const room = roomsStore[roomId];
+  const room = await getRoomById(roomId, c.env);
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
-  const body = await c.req.json<{ lat: unknown; lng: unknown }>();
+  const body = await c.req.json<{ lat: unknown; lng: unknown; name?: unknown; address?: unknown }>();
 
   if (
     typeof body.lat !== 'number' ||
@@ -288,23 +322,29 @@ app.put('/api/rooms/:roomId/destination', async (c) => {
 
   room.targetLat = body.lat;
   room.targetLng = body.lng;
+  room.destinationName = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : room.targetName || '目的地';
+  room.destinationAddress = typeof body.address === 'string' ? body.address.trim() || null : room.destinationAddress ?? null;
+  await saveRoom(room, c.env);
 
   return c.json({
     success: true,
     destination: { lat: room.targetLat, lng: room.targetLng },
+    destinationName: room.destinationName,
+    destinationAddress: room.destinationAddress,
     room: { ...room, members: Object.values(room.members) },
   });
 });
 
 app.put('/api/rooms/:roomId/meeting-time', async (c) => {
   const roomId = c.req.param('roomId');
-  const room = roomsStore[roomId];
+  const room = await getRoomById(roomId, c.env);
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
   const body = await c.req.json<{ meetingTime: unknown }>();
 
   if (body.meetingTime === null) {
     room.meetingTime = null;
+    await saveRoom(room, c.env);
     return c.json({ success: true, meetingTime: null, room: { ...room, members: Object.values(room.members) } });
   }
 
@@ -313,17 +353,20 @@ app.put('/api/rooms/:roomId/meeting-time', async (c) => {
   }
 
   room.meetingTime = new Date(body.meetingTime).toISOString();
+  await saveRoom(room, c.env);
   return c.json({ success: true, meetingTime: room.meetingTime, room: { ...room, members: Object.values(room.members) } });
 });
 
-app.get('/api/rooms/:roomId/map-state', (c) => {
+app.get('/api/rooms/:roomId/map-state', async (c) => {
   const roomId = c.req.param('roomId');
-  const room = roomsStore[roomId];
+  const room = await getRoomById(roomId, c.env);
 
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
   return c.json({
     destination: { lat: room.targetLat, lng: room.targetLng },
+    destinationName: room.destinationName ?? room.targetName ?? '目的地',
+    destinationAddress: room.destinationAddress ?? null,
     meetingTime: room.meetingTime,
     members: Object.values(room.members),
   });
