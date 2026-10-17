@@ -112,16 +112,10 @@ export default function DestinationMap({
     if (point) onPickDestination({ lat: point.lat, lng: point.lng })
   }
 
-  if (!destination && !isPickingOnMap) {
-    return (
-      <div className="map-empty" role="status">
-        <span className="map-empty__mark" aria-hidden="true">+</span>
-        <p className="map-empty__eyebrow">MAP NOT READY</p>
-        <h2>目的地を待っています</h2>
-        <p>目的地を設定すると、ここに集合場所の地図が表示されます。</p>
-      </div>
-    )
-  }
+  // NOTE: previously the component returned early when there was no destination and not picking.
+  // That prevented the Map component from rendering at all. To ensure the map tiles and controls
+  // are visible even before a destination is set, we always render the Map and show the empty
+  // placeholder as an overlay when appropriate.
 
   return (
     <div className="destination-map">
@@ -201,6 +195,17 @@ export default function DestinationMap({
       ))}
       <NavigationControl position="bottom-right" />
       </Map>
+
+      {/* Show the empty placeholder overlay on top of the Map when there's no destination and not picking. */}
+      {!destination && !isPickingOnMap && (
+        <div className="map-empty" role="status">
+          <span className="map-empty__mark" aria-hidden="true">+</span>
+          <p className="map-empty__eyebrow">MAP NOT READY</p>
+          <h2>目的地を待っています</h2>
+          <p>目的地を設定すると、ここに集合場所の地図が表示されます。</p>
+        </div>
+      )}
+
       {isPickingOnMap && (
         <button
           className="destination-map__pick-layer"
