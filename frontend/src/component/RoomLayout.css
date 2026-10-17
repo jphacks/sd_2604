@@ -4,7 +4,7 @@
   height: 100%;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  overflow: hidden;
+  overflow: auto;
   background: #f7f7f1;
 }
 
@@ -22,10 +22,9 @@
 }
 
 .room-heading {
-  display: flex;
+  display: grid;
   min-width: 0;
-  align-items: baseline;
-  gap: 12px;
+  gap: 4px;
 }
 
 .room-eyebrow {
@@ -48,11 +47,26 @@
   line-height: 1.35;
 }
 
+.room-meeting-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  margin-top: 3px;
+}
+
+.room-meeting-place,
 .room-meeting-time {
   margin: 0;
   color: #52665d;
-  font-size: 13px;
-  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.room-meeting-place strong,
+.room-meeting-time strong {
+  margin-left: 5px;
+  color: #22352f;
+  font-weight: 650;
 }
 
 .room-header .connection-status {
@@ -66,11 +80,29 @@
   gap: 16px;
 }
 
+.room-header__actions,
+.room-header__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room-workspace {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 37%);
+  gap: 12px;
+  padding: 12px 18px;
+}
+
 .room-map {
   position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  border: 1px solid #dfe5dd;
+  border-radius: 5px;
   background: #e7ece5;
 }
 
@@ -129,36 +161,50 @@
 .room-feature-slot {
   position: relative;
   z-index: 2;
-  max-height: min(38vh, 340px);
+  max-height: min(30vh, 280px);
   overflow: auto;
   border-top: 1px solid #e2e6df;
   background: #fffefa;
 }
 
 @media (max-width: 640px) {
+  .room-layout {
+    display: block;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+
   .room-header {
-    min-height: 72px;
-    gap: 10px;
-    padding: 10px 14px;
+    min-height: 0;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 13px 11px;
   }
 
   .room-heading {
-    flex-wrap: wrap;
-    column-gap: 8px;
-    row-gap: 2px;
+    gap: 3px;
   }
 
   .room-eyebrow {
-    flex-basis: 100%;
     font-size: 8px;
   }
 
   .room-heading h1 {
-    font-size: 17px;
+    font-size: 18px;
   }
 
+  .room-meeting-meta {
+    display: grid;
+    gap: 1px;
+    margin-top: 2px;
+  }
+
+  .room-meeting-place,
   .room-meeting-time {
-    font-size: 11px;
+    overflow-wrap: anywhere;
+    font-size: 10px;
   }
 
   .room-header .connection-status {
@@ -171,13 +217,40 @@
     gap: 9px;
   }
 
+  .room-header__tools {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+
+  .room-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+  }
+
+  .room-map {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .room-member-status {
+    min-height: 120px;
+  }
+
   .map-legend {
-    bottom: 12px;
-    left: 12px;
-    gap: 7px;
-    min-height: 35px;
-    padding: 7px 9px;
-    font-size: 10px;
+    bottom: 8px;
+    left: 8px;
+    gap: 6px;
+    min-height: 30px;
+    padding: 5px 7px;
+    font-size: 9px;
   }
 
   .map-legend__member {
@@ -185,7 +258,12 @@
   }
 
   .room-map__controls {
-    top: 12px;
-    right: 12px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .room-feature-slot {
+    max-height: none;
+    overflow: visible;
   }
 }

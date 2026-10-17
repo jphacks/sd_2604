@@ -33,5 +33,6 @@ export interface LocationSyncPayload {
 
 export interface MapState {
   destination: Destination | null
+  meetingTime: string | null
   members: MemberStatus[]
 }

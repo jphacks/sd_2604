@@ -18,6 +18,9 @@ export class MapApiClient {
 
     return {
       destination: this.validateDestination(value.destination),
+      meetingTime: typeof value.meetingTime === 'string' && Number.isFinite(Date.parse(value.meetingTime))
+        ? value.meetingTime
+        : null,
       members: value.members,
     }
   }
@@ -35,6 +38,22 @@ export class MapApiClient {
     if (!updatedDestination) throw new Error('Invalid destination response')
 
     return updatedDestination
+  }
+
+  async updateMeetingTime(meetingTime: string | null): Promise<string | null> {
+    const response = await this.request(`${this.baseUrl}/api/meeting-time`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meetingTime }),
+    })
+    if (!response.ok) throw new Error(`Meeting time update failed: ${response.status}`)
+
+    const value = (await response.json()) as { meetingTime?: unknown }
+    if (value.meetingTime === null) return null
+    if (typeof value.meetingTime !== 'string' || !Number.isFinite(Date.parse(value.meetingTime))) {
+      throw new Error('Invalid meeting time response')
+    }
+    return value.meetingTime
   }
 
   async syncLocation(payload: LocationSyncPayload): Promise<void> {

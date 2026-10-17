@@ -62,9 +62,16 @@ export default function MemberLocationSharing({
     const locationService = new MemberLocationService()
     let disposed = false
     let lastSyncAt = 0
-    const watchId = navigator.geolocation.watchPosition(
+    let watchId: number | null = null
+    let isUsingLowAccuracy = false
+
+    const startWatching = (enableHighAccuracy: boolean) => {
+      if (disposed) return
+      isUsingLowAccuracy = !enableHighAccuracy
+      watchId = navigator.geolocation.watchPosition(
       (position) => {
         if (disposed) return
+        setErrorMessage(null)
         const sample = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -100,30 +107,47 @@ export default function MemberLocationSharing({
       },
       (error) => {
         if (disposed) return
-        const message = error.code === error.PERMISSION_DENIED
-          ? '位置情報の利用が許可されていません。ブラウザーの設定を確認してください。'
-          : error.code === error.TIMEOUT
-            ? '現在地を取得できませんでした。受信状態を確認してください。'
-            : '現在地の取得中にエラーが発生しました。'
+        if (error.code === error.PERMISSION_DENIED) {
+          setErrorMessage('位置情報が許可されていません。ブラウザーと端末の設定で許可してください。')
+          setIsSharing(false)
+          return
+        }
+
+        if (!isUsingLowAccuracy) {
+          setErrorMessage('GPSで現在地を取得できないため、ネットワーク測位へ切り替えています。')
+          if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+          startWatching(false)
+          return
+        }
+
+        const message = error.code === error.TIMEOUT
+          ? '現在地の取得に時間がかかっています。屋外へ移動するか、端末の位置情報サービスを確認してください。'
+          : '端末が現在地を特定できません。位置情報サービスとWi-Fi・モバイル通信を確認してください。'
         setErrorMessage(message)
-        setIsSharing(false)
       },
       {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 20000,
+        enableHighAccuracy,
+        maximumAge: enableHighAccuracy ? 5000 : 15000,
+        timeout: enableHighAccuracy ? 15000 : 30000,
       },
-    )
+      )
+    }
+
+    startWatching(true)
 
     return () => {
       disposed = true
-      navigator.geolocation.clearWatch(watchId)
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId)
     }
   }, [apiClient, destinationLat, destinationLng, isSharing, participantId, userName])
 
   const toggleSharing = () => {
     if (!destination) {
       setErrorMessage('先に目的地を設定してください。')
+      return
+    }
+    if (!window.isSecureContext) {
+      setErrorMessage('位置情報を使うにはHTTPS接続が必要です。localhostで試すか、HTTPSで開いてください。')
       return
     }
     if (!isSharing && !navigator.geolocation) {
