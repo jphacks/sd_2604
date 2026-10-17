@@ -1,5 +1,5 @@
-import type { Destination, MemberStatus } from './mapTypes'
 import { formatDistance, getStraightLineDistanceMetres } from './mapMath'
+import type { Destination, MemberStatus } from './mapTypes'
 import './MemberStatusPanel.css'
 
 interface MemberStatusPanelProps {
@@ -80,7 +80,7 @@ export default function MemberStatusPanel({ members, destination, meetingTime }:
                 </div>
                 <div className="member-status__eta">
                   <strong>{formatEta(member.etaMinutes)}</strong>
-                  <span>到着予想</span>
+                  <span>{member.paceIsEstimated ? '徒歩ペース目安' : '到着予想'}</span>
                 </div>
                 <span className={`member-status__verdict is-${arrivalStatus}`}>
                   {statusLabel}

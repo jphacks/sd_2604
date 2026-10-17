@@ -186,9 +186,18 @@
 
 @media (max-width: 640px) {
   .destination-settings__panel {
-    top: calc(100% + 8px);
-    max-height: calc(100dvh - 112px);
-    padding: 15px;
+    position: fixed;
+    z-index: 20;
+    top: auto;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-height: min(40dvh, 400px);
+    gap: 11px;
+    padding: 14px;
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgb(33 52 43 / 22%);
   }
 
   .destination-settings__trigger {
