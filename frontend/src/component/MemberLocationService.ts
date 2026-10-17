@@ -11,11 +11,13 @@ interface PositionSample {
 export interface LocationUpdate {
   payload: LocationSyncPayload
   distanceMetres: number
+  paceIsEstimated: boolean
 }
 
 const EARTH_RADIUS_METRES = 6_371_000
 const PRIVACY_RADIUS_METRES = 500
 const PRIVACY_GRID_METRES = 700
+const DEFAULT_WALKING_PACE_METRES_PER_SECOND = 1.2
 
 function toRadians(degrees: number): number {
   return (degrees * Math.PI) / 180
@@ -71,6 +73,7 @@ function getSessionGridOffset(): { x: number; y: number } {
 export class MemberLocationService {
   private previousSample: PositionSample | null = null
   private paceMetresPerSecond: number | null = null
+  private hasMeasuredPace = false
   private readonly gridOffset = getSessionGridOffset()
 
   createUpdate(
@@ -83,11 +86,11 @@ export class MemberLocationService {
     const actualPosition = { lat: sample.latitude, lng: sample.longitude }
     const distanceMetres = getDistanceMetres(actualPosition, destination)
     const speed = this.updatePace(sample)
+    const paceForEta = speed ?? DEFAULT_WALKING_PACE_METRES_PER_SECOND
+    const paceIsEstimated = !this.hasMeasuredPace
     const etaMinutes = distanceMetres <= 20
       ? 0
-      : speed === null
-        ? null
-        : Math.ceil(distanceMetres / speed / 60)
+      : Math.ceil(distanceMetres / paceForEta / 60)
     const locationJammed = jamOutsidePrivacyRadius && distanceMetres > PRIVACY_RADIUS_METRES
     const sharedPosition = locationJammed ? this.getJammedPosition(actualPosition) : actualPosition
     const bearingDegrees = locationJammed
@@ -96,6 +99,7 @@ export class MemberLocationService {
 
     return {
       distanceMetres,
+      paceIsEstimated,
       payload: {
         userId,
         userName,
@@ -104,6 +108,7 @@ export class MemberLocationService {
         targetLat: destination.lat,
         targetLng: destination.lng,
         speed,
+        paceIsEstimated,
         etaMinutes,
         bearingDegrees,
         locationJammed,
@@ -124,17 +129,29 @@ export class MemberLocationService {
         { lat: sample.latitude, lng: sample.longitude },
       )
       const derivedSpeed = movedMetres / elapsedSeconds
-      if (elapsedSeconds >= 2 && elapsedSeconds <= 90 && movedMetres >= 3 && derivedSpeed <= 20) {
+      if (
+        elapsedSeconds >= 2 &&
+        elapsedSeconds <= 90 &&
+        movedMetres >= Math.max(3, this.previousSample.accuracy * 0.25, sample.accuracy * 0.25) &&
+        derivedSpeed >= 0.5 &&
+        derivedSpeed <= 20
+      ) {
         measuredSpeed = derivedSpeed
       }
     }
 
-    this.previousSample = sample
     if (measuredSpeed !== null && Number.isFinite(measuredSpeed) && measuredSpeed >= 0.5 && measuredSpeed <= 20) {
       this.paceMetresPerSecond = this.paceMetresPerSecond === null
         ? measuredSpeed
         : this.paceMetresPerSecond * 0.65 + measuredSpeed * 0.35
+      this.hasMeasuredPace = true
     }
+
+    if (
+      !this.previousSample ||
+      sample.timestamp - this.previousSample.timestamp >= 90_000 ||
+      this.hasMeasuredPace
+    ) this.previousSample = sample
 
     return this.paceMetresPerSecond
   }

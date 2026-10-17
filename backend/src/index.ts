@@ -15,6 +15,7 @@ interface MemberStatus {
   lng: number | null;
   speed: number | null;
   etaMinutes?: number | null;
+  paceIsEstimated?: boolean;
   bearingDegrees?: number | null;
   locationJammed?: boolean;
   isWithin500m: boolean;
@@ -54,6 +55,21 @@ function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+// 1. 位置情報の同期 & 500m判定API
+app.post('/api/location/sync', async (c) => {
+  const body = await c.req.json<{
+    userId: string;
+    userName: string;
+    userLat: number;
+    userLng: number;
+    speed: number | null;
+    targetLat: number;
+    targetLng: number;
+    etaMinutes?: number | null;
+    paceIsEstimated?: boolean;
+    bearingDegrees?: number | null;
+    locationJammed?: boolean;
+  }>();
 // --------------------------------------------------
 // 1. 新規ルーム作成 API
 // --------------------------------------------------
@@ -129,6 +145,20 @@ app.post('/api/rooms/:roomId/join', async (c) => {
     speed: null,
     isWithin500m: false,
     status: 'on_the_way',
+  };
+
+  // 端末が秘匿設定に応じて正確値または概算値を選択して送信する
+  membersStore[body.userId] = {
+    ...current,
+    name: body.userName,
+    lat: body.userLat,
+    lng: body.userLng,
+    speed,
+    etaMinutes,
+    paceIsEstimated: body.paceIsEstimated === true,
+    bearingDegrees,
+    locationJammed,
+    isWithin500m,
     updatedAt: new Date().toISOString(),
   };
 

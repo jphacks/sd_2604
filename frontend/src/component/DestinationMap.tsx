@@ -1,7 +1,7 @@
-import 'maplibre-gl/dist/maplibre-gl.css'
-import { useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import { setWorkerUrl } from 'maplibre-gl'
 import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import Map, { Layer, Marker, NavigationControl, Source } from 'react-map-gl/maplibre'
 import './DestinationMap.css'
@@ -55,11 +55,7 @@ export default function DestinationMap({
   } | null>(null)
   const visibleMembers = (state?.members ?? []).filter(
     (member): member is MemberStatus & { lat: number; lng: number } =>
-      member.lat !== null &&
-      member.lng !== null &&
-      (member.locationJammed === true ||
-        !destination ||
-        getStraightLineDistanceMetres({ lat: member.lat, lng: member.lng }, destination) <= 500),
+      member.lat !== null && member.lng !== null,
   )
 
   const radiusCoordinates = destination ? Array.from({ length: 65 }, (_, index) => {
@@ -180,14 +176,14 @@ export default function DestinationMap({
                   {formatBearing(member.bearingDegrees) ?? '方角不明'}方面
                   {member.etaMinutes === null || member.etaMinutes === undefined
                     ? ' · 計測中'
-                    : ` · 約${member.etaMinutes}分`}
+                    : ` · ${member.paceIsEstimated ? '徒歩目安' : '約'}${member.etaMinutes}分`}
                 </span>
               ) : (
                 <span>
                   {destination ? formatDistance(getStraightLineDistanceMetres(member, destination)) : '位置共有中'}
                   {member.etaMinutes === null || member.etaMinutes === undefined
                     ? ''
-                    : ` · 約${member.etaMinutes}分`}
+                    : ` · ${member.paceIsEstimated ? '徒歩目安' : '約'}${member.etaMinutes}分`}
                 </span>
               )}
             </span>

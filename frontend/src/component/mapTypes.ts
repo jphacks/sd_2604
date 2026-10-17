@@ -11,6 +11,7 @@ export interface MemberStatus {
   lng: number | null
   speed: number | null
   etaMinutes?: number | null
+  paceIsEstimated?: boolean
   bearingDegrees?: number | null
   locationJammed?: boolean
   isWithin500m: boolean
@@ -27,6 +28,7 @@ export interface LocationSyncPayload {
   targetLng: number
   speed: number | null
   etaMinutes: number | null
+  paceIsEstimated: boolean
   bearingDegrees: number | null
   locationJammed: boolean
 }

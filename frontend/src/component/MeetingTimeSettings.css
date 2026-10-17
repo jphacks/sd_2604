@@ -115,6 +115,15 @@
   }
 
   .meeting-time-settings__panel {
-    top: calc(100% + 6px);
+    position: fixed;
+    z-index: 21;
+    top: auto;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-height: min(35dvh, 280px);
+    overflow: auto;
+    padding: 14px;
   }
 }

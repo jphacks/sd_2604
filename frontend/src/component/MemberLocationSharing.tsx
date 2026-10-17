@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MapApiClient } from './MapApiClient'
-import { MemberLocationService } from './MemberLocationService'
 import type { Destination } from './mapTypes'
+import { MemberLocationService } from './MemberLocationService'
 import './MemberLocationSharing.css'
 
 interface MemberLocationSharingProps {
@@ -14,6 +14,7 @@ interface MemberLocationSharingProps {
 interface OwnLocationStatus {
   distanceMetres: number
   etaMinutes: number | null
+  paceIsEstimated: boolean
   locationJammed: boolean
 }
 
@@ -90,6 +91,7 @@ export default function MemberLocationSharing({
         setLocationStatus({
           distanceMetres: update.distanceMetres,
           etaMinutes: update.payload.etaMinutes,
+          paceIsEstimated: update.paceIsEstimated,
           locationJammed: update.payload.locationJammed,
         })
 
@@ -177,7 +179,7 @@ export default function MemberLocationSharing({
                 ? 'ペース計測中'
                 : locationStatus.etaMinutes === 0
                   ? '到着圏内'
-                  : `到着目安 ${locationStatus.etaMinutes}分`}
+                  : `${locationStatus.paceIsEstimated ? '徒歩目安' : '到着目安'} ${locationStatus.etaMinutes}分`}
             </strong>
           </div>
         )}
@@ -203,7 +205,7 @@ export default function MemberLocationSharing({
         <p className={!jamOutsideRadius ? 'is-warning' : undefined}>
           {jamOutsideRadius
             ? '500m以内は正確な位置、圏外は端末上で約700m単位に丸めた位置を送信します。到着目安と方角は別に共有します。'
-            : 'OFFでは正確な現在地を通信します。サーバーは500m圏外の座標を保存せず、地図には表示されません。'}
+            : 'OFFでは500m圏外も正確な現在地を通信し、参加者全員の地図に表示します。'}
         </p>
       </div>
 
