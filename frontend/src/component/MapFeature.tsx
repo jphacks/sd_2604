@@ -41,7 +41,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
 
     const refreshMapState = async () => {
       try {
-        const nextState = await apiClient.getMapState()
+        const nextState = await apiClient.getMapState(roomId)
         if (!disposed) {
           setMapState(nextState)
           setConnectionError(false)
@@ -58,7 +58,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
       disposed = true
       window.clearInterval(intervalId)
     }
-  }, [apiClient])
+  }, [apiClient, roomId])
 
   const destination = previewDestination ?? mapState?.destination ?? null
   const meetingTime = roomInfo?.meetingTime ?? mapState?.meetingTime ?? null
@@ -72,7 +72,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
     setDestinationSaveError(null)
 
     try {
-      const updatedDestination = await apiClient.updateDestination(nextDestination)
+      const updatedDestination = await apiClient.updateDestination(roomId, nextDestination)
       setMapState((current) => ({
         destination: updatedDestination,
         meetingTime: current?.meetingTime ?? null,
@@ -93,7 +93,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
     setMeetingTimeSaveError(null)
 
     try {
-      const updatedMeetingTime = await apiClient.updateMeetingTime(nextMeetingTime)
+      const updatedMeetingTime = await apiClient.updateMeetingTime(roomId, nextMeetingTime)
       setMapState((current) => ({
         destination: current?.destination ?? null,
         meetingTime: updatedMeetingTime,
@@ -164,6 +164,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
       <MemberLocationSharing
         apiClient={apiClient}
         destination={destination}
+        roomId={roomId}
         userId={participant?.id}
         userName={participant?.name}
       />

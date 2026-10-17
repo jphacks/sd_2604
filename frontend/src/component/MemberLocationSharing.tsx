@@ -7,6 +7,7 @@ import './MemberLocationSharing.css'
 interface MemberLocationSharingProps {
   apiClient: MapApiClient
   destination: Destination | null
+  roomId?: string | null
   userId?: string
   userName?: string
 }
@@ -59,6 +60,7 @@ function formatDistance(metres: number): string {
 export default function MemberLocationSharing({
   apiClient,
   destination,
+  roomId,
   userId,
   userName = '自分',
 }: MemberLocationSharingProps) {
@@ -133,7 +135,7 @@ export default function MemberLocationSharing({
         if (now - lastSyncAt < 5000) return
         lastSyncAt = now
 
-        void apiClient.syncLocation(update.payload)
+        void apiClient.syncLocation(roomId, update.payload)
           .then(() => {
             if (!disposed) setErrorMessage(null)
           })
@@ -175,7 +177,7 @@ export default function MemberLocationSharing({
       disposed = true
       if (watchId !== null) navigator.geolocation.clearWatch(watchId)
     }
-  }, [apiClient, destinationLat, destinationLng, displayName, isSharing, participantId])
+  }, [apiClient, destinationLat, destinationLng, displayName, isSharing, participantId, roomId])
 
   const handleNameChange = (nextName: string) => {
     const trimmed = nextName.trimStart().slice(0, 24)

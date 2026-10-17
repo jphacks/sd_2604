@@ -46,8 +46,9 @@ export class MapApiClient {
     return (await response.json()) as CreateRoomResponse
   }
 
-  async getMapState(): Promise<MapState> {
-    const response = await this.request(`${this.baseUrl}/api/map-state`)
+  async getMapState(roomId?: string | null): Promise<MapState> {
+    const endpoint = roomId ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/map-state` : `${this.baseUrl}/api/map-state`
+    const response = await this.request(endpoint)
     if (!response.ok) throw new Error(`Map state request failed: ${response.status}`)
 
     const value = (await response.json()) as Partial<MapState>
@@ -62,8 +63,11 @@ export class MapApiClient {
     }
   }
 
-  async updateDestination(destination: Destination): Promise<Destination> {
-    const response = await this.request(`${this.baseUrl}/api/destination`, {
+  async updateDestination(roomId: string | null | undefined, destination: Destination): Promise<Destination> {
+    const endpoint = roomId
+      ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/destination`
+      : `${this.baseUrl}/api/destination`
+    const response = await this.request(endpoint, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(destination),
@@ -77,8 +81,11 @@ export class MapApiClient {
     return updatedDestination
   }
 
-  async updateMeetingTime(meetingTime: string | null): Promise<string | null> {
-    const response = await this.request(`${this.baseUrl}/api/meeting-time`, {
+  async updateMeetingTime(roomId: string | null | undefined, meetingTime: string | null): Promise<string | null> {
+    const endpoint = roomId
+      ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/meeting-time`
+      : `${this.baseUrl}/api/meeting-time`
+    const response = await this.request(endpoint, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ meetingTime }),
@@ -93,8 +100,11 @@ export class MapApiClient {
     return value.meetingTime
   }
 
-  async syncLocation(payload: LocationSyncPayload): Promise<void> {
-    const response = await this.request(`${this.baseUrl}/api/location/sync`, {
+  async syncLocation(roomId: string | null | undefined, payload: LocationSyncPayload): Promise<void> {
+    const endpoint = roomId
+      ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/sync`
+      : `${this.baseUrl}/api/location/sync`
+    const response = await this.request(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
