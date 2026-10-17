@@ -15,6 +15,7 @@ function formatMeetingTime(value?: string): string {
 
 interface RoomLayoutProps {
   title: string
+  roomId?: string | null
   meetingPlace?: string
   meetingTime?: string
   connectionLabel: string
@@ -28,6 +29,7 @@ interface RoomLayoutProps {
 
 export default function RoomLayout({
   title,
+  roomId,
   meetingPlace,
   meetingTime,
   connectionLabel,
@@ -44,6 +46,11 @@ export default function RoomLayout({
         <div className="room-heading">
           <p className="room-eyebrow">MEETPOINT / ROOM</p>
           <h1>{title}</h1>
+          {roomId && (
+            <div className="room-id-chip" aria-label={`部屋ID: ${roomId}`}>
+              ROOM ID: {roomId}
+            </div>
+          )}
           <div className="room-meeting-meta">
             <p className="room-meeting-place">集合場所 <strong>{meetingPlace ?? '未設定'}</strong></p>
             <p className="room-meeting-time">集合時刻 <strong>{formatMeetingTime(meetingTime)}</strong></p>

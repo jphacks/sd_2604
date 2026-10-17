@@ -20,9 +20,10 @@ interface MapFeatureProps {
     id: string
     name: string
   }
+  roomId?: string | null
 }
 
-export default function MapFeature({ apiClient, participant, roomInfo }: MapFeatureProps) {
+export default function MapFeature({ apiClient, participant, roomInfo, roomId }: MapFeatureProps) {
   const [mapState, setMapState] = useState<MapState | null>(null)
   const [connectionError, setConnectionError] = useState(false)
   const [isSavingDestination, setIsSavingDestination] = useState(false)
@@ -61,6 +62,7 @@ export default function MapFeature({ apiClient, participant, roomInfo }: MapFeat
 
   const destination = previewDestination ?? mapState?.destination ?? null
   const meetingTime = roomInfo?.meetingTime ?? mapState?.meetingTime ?? null
+  const roomTitle = roomInfo?.title ?? '待ち合わせ'
   const destinationLabel = roomInfo?.meetingPlace ?? (destination
     ? `${destination.lat.toFixed(5)}, ${destination.lng.toFixed(5)}`
     : '目的地未設定')
@@ -115,7 +117,8 @@ export default function MapFeature({ apiClient, participant, roomInfo }: MapFeat
 
   return (
     <RoomLayout
-      title={roomInfo?.title ?? '待ち合わせ'}
+      title={roomTitle}
+      roomId={roomId}
       meetingPlace={destinationLabel}
       meetingTime={meetingTime ?? undefined}
       connectionLabel={connectionError ? 'APIに接続できません' : mapState ? '5秒ごとに更新' : '接続中'}

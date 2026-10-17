@@ -152,7 +152,7 @@ export default function DestinationSettings({
           </div>
 
           <p className="destination-settings__scope-note">
-            保存すると現在の共有地図に反映されます。部屋IDがないため、現状は全体共通です。
+            保存するとこの部屋の共有地図に反映されます。URL の room パラメータに部屋IDが保持されます。
           </p>
 
           {saveError && <p className="destination-settings__error" role="alert">{saveError}</p>}
