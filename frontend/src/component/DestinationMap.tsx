@@ -1,9 +1,13 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useRef, type MouseEvent as ReactMouseEvent } from 'react'
+import { setWorkerUrl } from 'maplibre-gl'
+import mapLibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url'
 import type { MapRef } from 'react-map-gl/maplibre'
 import Map, { Layer, Marker, NavigationControl, Source } from 'react-map-gl/maplibre'
 import './DestinationMap.css'
 import type { Destination, MapState, MemberStatus } from './mapTypes'
+
+setWorkerUrl(mapLibreWorkerUrl)
 
 function getStraightLineDistanceMetres(from: Destination, to: Destination): number {
   const earthRadiusMetres = 6_371_000

@@ -37,6 +37,7 @@ interface Room {
 const roomsStore: Record<string, Room> = {};
 const membersStore: Record<string, MemberStatus> = {};
 let destination: { lat: number; lng: number } | null = null;
+let meetingTime: string | null = null;
 
 // 距離計算 (Haversine)
 function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -224,9 +225,26 @@ app.put('/api/destination', async (c) => {
   return c.json({ success: true, destination });
 });
 
+app.put('/api/meeting-time', async (c) => {
+  const body = await c.req.json<{ meetingTime: unknown }>();
+
+  if (body.meetingTime === null) {
+    meetingTime = null;
+    return c.json({ success: true, meetingTime });
+  }
+
+  if (typeof body.meetingTime !== 'string' || !Number.isFinite(Date.parse(body.meetingTime))) {
+    return c.json({ success: false, error: 'Invalid meeting time' }, 400);
+  }
+
+  meetingTime = new Date(body.meetingTime).toISOString();
+  return c.json({ success: true, meetingTime });
+});
+
 app.get('/api/map-state', (c) => {
   return c.json({
     destination,
+    meetingTime,
     members: Object.values(membersStore),
   });
 });
