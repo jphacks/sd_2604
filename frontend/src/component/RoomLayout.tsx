@@ -1,66 +1,93 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import './RoomLayout.css'
 
-function formatMeetingTime(value?: string): string {
-  if (!value) return '未設定'
+function formatMeetingDate(value?: string): string {
+  if (!value) return '--/--'
   const date = new Date(value)
-  if (!Number.isFinite(date.getTime())) return value
+  if (!Number.isFinite(date.getTime())) return '--/--'
   return new Intl.DateTimeFormat('ja-JP', {
     month: 'numeric',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   }).format(date)
 }
 
 interface RoomLayoutProps {
-  title: string
   roomId?: string | null
-  meetingPlace?: string
   meetingTime?: string
   connectionLabel: string
   connectionError?: boolean
+  meetingTimeControl?: ReactNode
   map: ReactNode
   memberStatus?: ReactNode
-  headerActions?: ReactNode
   mapControls?: ReactNode
   children?: ReactNode
 }
 
 export default function RoomLayout({
-  title,
   roomId,
-  meetingPlace,
   meetingTime,
   connectionLabel,
   connectionError = false,
+  meetingTimeControl,
   map,
   memberStatus,
-  headerActions,
   mapControls,
   children,
 }: RoomLayoutProps) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyRoomUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      const textArea = document.createElement('textarea')
+      textArea.value = window.location.href
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   return (
     <main className="room-layout">
       <header className="room-header">
-        <div className="room-heading">
-          <p className="room-eyebrow">MEETPOINT / ROOM</p>
-          <h1>{title}</h1>
-          {roomId && (
-            <div className="room-id-chip" aria-label={`部屋ID: ${roomId}`}>
-              ROOM ID: {roomId}
+        <div className="room-header__inner">
+          <div className="room-header__top">
+            <div className="room-header__top-left">
+              <button
+                type="button"
+                className={`room-id-block${copied ? ' is-copied' : ''}`}
+                onClick={() => void handleCopyRoomUrl()}
+                title="タップして部屋のURLをコピー"
+                aria-label={roomId ? `部屋ID: ${roomId}。タップしてURLをコピー` : 'URLをコピー'}
+              >
+                <span className="room-id-block__label">
+                  {copied ? 'COPIED URL!' : 'ROOM ID'}
+                </span>
+                <span className="room-id-block__value">{roomId ?? '---'}</span>
+              </button>
             </div>
-          )}
-          <div className="room-meeting-meta">
-            <p className="room-meeting-place">集合場所 <strong>{meetingPlace ?? '未設定'}</strong></p>
-            <p className="room-meeting-time">集合時刻 <strong>{formatMeetingTime(meetingTime)}</strong></p>
+
+            <div className="room-header__top-right">
+              {/* ドットを左、日付を右に配置することで、右端を時間（hh:mm）と揃えます */}
+              <div
+                className={`connection-status-dot${connectionError ? ' is-error' : ''}`}
+                title={`API: ${connectionLabel}`}
+                aria-label={`API状態: ${connectionLabel}`}
+              />
+              <div className="room-date" aria-label="集合日">
+                {formatMeetingDate(meetingTime)}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="room-header__right">
-          {headerActions && <div className="room-header__actions">{headerActions}</div>}
-          <div className={`connection-status${connectionError ? ' connection-status--error' : ''}`}>
-            <span className="connection-status__dot" />
-            {connectionLabel}
+
+          <div className="room-header__bottom">
+            {meetingTimeControl}
           </div>
         </div>
       </header>

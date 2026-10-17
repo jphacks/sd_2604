@@ -1,40 +1,60 @@
 .meeting-time-settings {
   position: relative;
+  width: fit-content;
 }
 
 .meeting-time-settings__trigger {
   display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  gap: 7px;
-  padding: 0 11px;
-  border: 1px solid #d9e0d9;
-  border-radius: 5px;
-  background: #fffefa;
-  color: #33463d;
+  align-items: baseline;
+  gap: 14px;
+  padding: 4px 6px;
+  margin: 0 -6px; /* 余白を相殺し、テキスト両端をコンテナ枠と完全に一致させる */
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #22352f;
   cursor: pointer;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .meeting-time-settings__trigger:hover {
-  border-color: #237765;
+  background: #f0f3ee;
 }
 
-.meeting-time-settings__trigger span {
-  color: #237765;
-  font-size: 17px;
-  line-height: 1;
+.meeting-time-settings__label {
+  color: #52665d;
+  font-size: var(--meeting-label-size); /* RoomLayoutで定義された変数を継承 */
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.meeting-time-settings__time {
+  font-size: 36px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  line-height: 1.05;
+}
+
+/* 集合時刻30分前〜直前：オレンジ */
+.meeting-time-settings__trigger.is-soon .meeting-time-settings__time,
+.meeting-time-settings__trigger.is-soon .meeting-time-settings__label {
+  color: #d9822b;
+}
+
+/* 集合時刻経過後：コーラルレッド */
+.meeting-time-settings__trigger.is-overdue .meeting-time-settings__time,
+.meeting-time-settings__trigger.is-overdue .meeting-time-settings__label {
+  color: #d9553d;
 }
 
 .meeting-time-settings__panel {
   position: absolute;
-  z-index: 10;
-  top: calc(100% + 8px);
-  right: 0;
+  z-index: 25;
+  top: calc(100% + 6px);
+  left: 0;
   display: grid;
-  width: min(310px, calc(100vw - 24px));
+  width: min(310px, calc(100vw - 28px));
   gap: 10px;
   padding: 15px;
   border: 1px solid #e0e5dd;
@@ -59,14 +79,7 @@
   background: white;
   color: #22352f;
   font: inherit;
-  font-size: 12px;
-}
-
-.meeting-time-settings__panel input:focus-visible,
-.meeting-time-settings__trigger:focus-visible,
-.meeting-time-settings__actions button:focus-visible {
-  outline: 2px solid #237765;
-  outline-offset: 2px;
+  font-size: 13px;
 }
 
 .meeting-time-settings__actions {
@@ -108,22 +121,32 @@
 }
 
 @media (max-width: 640px) {
+  .meeting-time-settings {
+    width: 100%;
+  }
+
   .meeting-time-settings__trigger {
-    min-height: 32px;
-    padding: 0 8px;
-    font-size: 10px;
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 6px;
+    margin: 0 -6px;
+  }
+
+  .meeting-time-settings__time {
+    font-size: clamp(38px, 13.5vw, 56px);
   }
 
   .meeting-time-settings__panel {
     position: fixed;
-    z-index: 21;
+    z-index: 30;
     top: auto;
     right: 12px;
     bottom: max(12px, env(safe-area-inset-bottom));
     left: 12px;
     width: auto;
-    max-height: min(35dvh, 280px);
-    overflow: auto;
     padding: 14px;
   }
 }

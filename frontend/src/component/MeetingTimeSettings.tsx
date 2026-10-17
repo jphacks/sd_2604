@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import './MeetingTimeSettings.css'
 
 interface MeetingTimeSettingsProps {
@@ -16,16 +16,26 @@ function toLocalInputValue(value: string | null): string {
   return localDate.toISOString().slice(0, 16)
 }
 
-function formatMeetingTime(value: string | null): string {
-  if (!value) return '時刻を設定'
+function formatTimeOnly(value: string | null): string {
+  if (!value) return '--:--'
   const date = new Date(value)
-  if (!Number.isFinite(date.getTime())) return '時刻を設定'
+  if (!Number.isFinite(date.getTime())) return '--:--'
   return new Intl.DateTimeFormat('ja-JP', {
-    month: 'numeric',
-    day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   }).format(date)
+}
+
+function getTimeUrgency(value: string | null, nowMs: number): 'normal' | 'soon' | 'overdue' {
+  if (!value) return 'normal'
+  const targetMs = new Date(value).getTime()
+  if (!Number.isFinite(targetMs)) return 'normal'
+
+  const diffMinutes = (targetMs - nowMs) / 60_000
+  if (diffMinutes < 0) return 'overdue'
+  if (diffMinutes <= 30) return 'soon'
+  return 'normal'
 }
 
 export default function MeetingTimeSettings({
@@ -36,6 +46,14 @@ export default function MeetingTimeSettings({
 }: MeetingTimeSettingsProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [inputValue, setInputValue] = useState('')
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  const urgency = getTimeUrgency(meetingTime, nowMs)
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -57,21 +75,22 @@ export default function MeetingTimeSettings({
   return (
     <div className="meeting-time-settings">
       <button
-        className="meeting-time-settings__trigger"
+        className={`meeting-time-settings__trigger is-${urgency}`}
         type="button"
         aria-expanded={isOpen}
+        title="タップして集合時刻を再設定"
         onClick={() => {
           if (!isOpen) setInputValue(toLocalInputValue(meetingTime))
           setIsOpen((open) => !open)
         }}
       >
-        <span aria-hidden="true">◷</span>
-        {meetingTime ? formatMeetingTime(meetingTime) : '集合時刻を設定'}
+        <span className="meeting-time-settings__label">集合時刻</span>
+        <strong className="meeting-time-settings__time">{formatTimeOnly(meetingTime)}</strong>
       </button>
 
       {isOpen && (
         <form className="meeting-time-settings__panel" onSubmit={save}>
-          <label htmlFor="meeting-time-input">集合日時</label>
+          <label htmlFor="meeting-time-input">集合日時を再設定</label>
           <input
             id="meeting-time-input"
             type="datetime-local"
@@ -81,13 +100,21 @@ export default function MeetingTimeSettings({
           />
           {errorMessage && <p className="meeting-time-settings__error" role="alert">{errorMessage}</p>}
           <div className="meeting-time-settings__actions">
+            <button type="button" onClick={() => setIsOpen(false)}>
+              キャンセル
+            </button>
             {meetingTime && (
-              <button type="button" className="meeting-time-settings__clear" onClick={() => void clearTime()} disabled={isSaving}>
+              <button
+                type="button"
+                className="meeting-time-settings__clear"
+                onClick={() => void clearTime()}
+                disabled={isSaving}
+              >
                 解除
               </button>
             )}
             <button type="submit" className="meeting-time-settings__save" disabled={!inputValue || isSaving}>
-              {isSaving ? '保存中...' : '時刻を保存'}
+              {isSaving ? '保存中...' : '保存'}
             </button>
           </div>
         </form>

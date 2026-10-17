@@ -12,13 +12,6 @@ interface MemberLocationSharingProps {
   userName?: string
 }
 
-interface OwnLocationStatus {
-  distanceMetres: number
-  etaMinutes: number | null
-  paceIsEstimated: boolean
-  locationJammed: boolean
-}
-
 function getParticipantId(): string {
   const storageKey = 'meetpoint.participant-id'
 
@@ -41,13 +34,7 @@ function getStoredParticipantName(defaultName: string): string {
     const savedName = localStorage.getItem(storageKey)
     if (savedName && savedName.trim()) return savedName.trim()
   } catch {
-    // ignore access failures and fall back below
-  }
-
-  try {
-    localStorage.setItem(storageKey, defaultName)
-  } catch {
-    // ignore storage failures
+    // ignore access failures
   }
 
   return defaultName
@@ -78,7 +65,6 @@ export default function MemberLocationSharing({
   const [participantName, setParticipantName] = useState(() => getStoredParticipantName(userName || '自分'))
   const [isSharing, setIsSharing] = useState(false)
   const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
-  const [locationStatus, setLocationStatus] = useState<OwnLocationStatus | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [namePromptOpen, setNamePromptOpen] = useState(() => !localStorage.getItem('meetpoint.participant-name'))
   const jamOutsideRadiusRef = useRef(jamOutsideRadius)
@@ -150,6 +136,8 @@ export default function MemberLocationSharing({
           if (now - lastSyncAt < 5000) return
           lastSyncAt = now
 
+          void apiClient
+            .syncLocation(roomId, update.payload)
           void apiClient.syncLocation(roomId, update.payload)
             .then(() => {
               if (!disposed) setErrorMessage(null)
@@ -161,6 +149,7 @@ export default function MemberLocationSharing({
         (error) => {
           if (disposed) return
           if (error.code === error.PERMISSION_DENIED) {
+            setErrorMessage('位置情報が許可されていません。ブラウザの設定で許可してください。')
             setErrorMessage('位置情報が許可されていません。ブラウザーと端末の設定で許可してください。')
             setIsSharing(false)
             return
@@ -173,6 +162,10 @@ export default function MemberLocationSharing({
             return
           }
 
+          const message =
+            error.code === error.TIMEOUT
+              ? '現在地の取得に時間がかかっています。'
+              : '端末が現在地を特定できません。'
           const message = error.code === error.TIMEOUT
             ? '現在地の取得に時間がかかっています。屋外へ移動するか、端末の位置情報サービスを確認してください。'
             : '端末が現在地を特定できません。位置情報サービスとWi-Fi・モバイル通信を確認してください。'
@@ -194,6 +187,20 @@ export default function MemberLocationSharing({
     }
   }, [apiClient, destinationLat, destinationLng, displayName, isSharing, participantId, roomId])
 
+  const handleToggleSharing = (nextSharing: boolean) => {
+    if (nextSharing) {
+      if (!destination) {
+        setErrorMessage('先に目的地を設定してください。')
+        return
+      }
+      if (!window.isSecureContext) {
+        setErrorMessage('位置情報を使うにはHTTPS接続が必要です。')
+        return
+      }
+      if (!navigator.geolocation) {
+        setErrorMessage('このブラウザーでは位置情報を利用できません。')
+        return
+      }
   const handleNameChange = (nextName: string) => {
     const trimmed = nextName.trimStart().slice(0, 24)
     setParticipantName(trimmed)
@@ -227,11 +234,34 @@ export default function MemberLocationSharing({
       return
     }
     setErrorMessage(null)
-    setIsSharing((current) => !current)
+    setIsSharing(nextSharing)
   }
 
   return (
     <div className="location-sharing" aria-live="polite">
+      <label className="location-sharing__switch-row">
+        <input
+          type="checkbox"
+          className="location-sharing__switch-input"
+          checked={isSharing}
+          onChange={(event) => handleToggleSharing(event.target.checked)}
+        />
+        <span className="location-sharing__switch-slider" aria-hidden="true" />
+        <span className="location-sharing__switch-label">共有中</span>
+      </label>
+
+      <label className="location-sharing__jam-row">
+        <input
+          type="checkbox"
+          checked={jamOutsideRadius}
+          onChange={(event) => setJamOutsideRadius(event.target.checked)}
+        />
+        <span>ジャミング</span>
+      </label>
+
+      {errorMessage && (
+        <p className="location-sharing__error" role="status">
+          {errorMessage}
       <div className="location-sharing__summary">
         <div className="location-sharing__identity">
           <span className={`location-sharing__indicator${isSharing ? ' is-active' : ''}`} />
@@ -299,9 +329,7 @@ export default function MemberLocationSharing({
             ? '500m以内は正確な位置、圏外は端末上で約700m単位に丸めた位置を送信します。到着目安と方角は別に共有します。'
             : 'OFFでは500m圏外も正確な現在地を通信し、参加者全員の地図に表示します。'}
         </p>
-      </div>
-
-      {errorMessage && <p className="location-sharing__error" role="status">{errorMessage}</p>}
+      )}
     </div>
   )
 }
