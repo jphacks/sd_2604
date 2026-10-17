@@ -1,0 +1,52 @@
+import { useState } from 'react';
+import Map, { Marker } from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+// 集合場所（例: 仙台駅）
+const DESTINATION = {
+  name: "仙台駅 ペデストリアンデッキ",
+  lat: 38.2601,
+  lng: 140.8824,
+};
+
+export default function App() {
+  const [viewState, setViewState] = useState({
+    longitude: DESTINATION.lng,
+    latitude: DESTINATION.lat,
+    zoom: 14,
+  });
+
+  return (
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <Map
+        {...viewState}
+        onMove={(evt) => setViewState(evt.viewState)}
+        // 完全無料で動くベクトル地図スタイル
+        mapStyle="https://tiles.openfreemap.org/styles/bright"
+      >
+        {/* 目的地ピン */}
+        <Marker longitude={DESTINATION.lng} latitude={DESTINATION.lat} anchor="bottom">
+          <div style={{
+            background: '#ff4757', color: 'white', padding: '8px 12px',
+            borderRadius: '20px', fontWeight: 'bold', fontSize: '14px',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.3)', whiteSpace: 'nowrap'
+          }}>
+            📍 {DESTINATION.name}
+          </div>
+        </Marker>
+      </Map>
+
+      {/* 視点を目的地に戻すボタン */}
+      <button
+        onClick={() => setViewState({ longitude: DESTINATION.lng, latitude: DESTINATION.lat, zoom: 14 })}
+        style={{
+          position: 'absolute', top: 20, right: 20, zIndex: 10,
+          padding: '10px 16px', background: 'white', border: '1px solid #ccc',
+          borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
+        }}
+      >
+        🎯 目的地を中心に表示
+      </button>
+    </div>
+  );
+}
