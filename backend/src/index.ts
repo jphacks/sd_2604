@@ -14,6 +14,9 @@ interface MemberStatus {
   lat: number | null;
   lng: number | null;
   speed: number | null;
+  etaMinutes?: number | null;
+  bearingDegrees?: number | null;
+  locationJammed?: boolean;
   isWithin500m: boolean;
   status: 'on_the_way' | 'arrived';
   updatedAt: string;
@@ -48,10 +51,37 @@ app.post('/api/location/sync', async (c) => {
     speed: number | null;
     targetLat: number;
     targetLng: number;
+    etaMinutes?: number | null;
+    bearingDegrees?: number | null;
+    locationJammed?: boolean;
   }>();
 
-  const distance = getDistanceMetres(body.userLat, body.userLng, body.targetLat, body.targetLng);
-  const isWithin500m = distance <= 500;
+  if (
+    typeof body.userId !== 'string' || !body.userId.trim() ||
+    typeof body.userName !== 'string' || !body.userName.trim() ||
+    ![body.userLat, body.userLng, body.targetLat, body.targetLng].every(Number.isFinite) ||
+    body.userLat < -90 || body.userLat > 90 ||
+    body.targetLat < -90 || body.targetLat > 90 ||
+    body.userLng < -180 || body.userLng > 180 ||
+    body.targetLng < -180 || body.targetLng > 180
+  ) {
+    return c.json({ success: false, error: 'Invalid location sync payload' }, 400);
+  }
+
+  const locationJammed = body.locationJammed === true;
+  const distance = locationJammed
+    ? null
+    : getDistanceMetres(body.userLat, body.userLng, body.targetLat, body.targetLng);
+  const isWithin500m = distance !== null && distance <= 500;
+  const etaMinutes = typeof body.etaMinutes === 'number' && Number.isFinite(body.etaMinutes) && body.etaMinutes >= 0
+    ? Math.min(Math.round(body.etaMinutes), 1440)
+    : null;
+  const speed = typeof body.speed === 'number' && Number.isFinite(body.speed) && body.speed >= 0 && body.speed <= 20
+    ? body.speed
+    : null;
+  const bearingDegrees = typeof body.bearingDegrees === 'number' && Number.isFinite(body.bearingDegrees)
+    ? ((Math.round(body.bearingDegrees) % 360) + 360) % 360
+    : null;
   destination = { lat: body.targetLat, lng: body.targetLng };
 
   const current = membersStore[body.userId] || {
@@ -61,20 +91,23 @@ app.post('/api/location/sync', async (c) => {
     status: 'on_the_way',
   };
 
-  // 500m外の場合はプライバシー保護のため lat/lng を null にする
+  // 500m外は通常nullにし、端末でジャミングされた概算座標だけ保存する
   membersStore[body.userId] = {
     ...current,
     name: body.userName,
-    lat: isWithin500m ? body.userLat : null,
-    lng: isWithin500m ? body.userLng : null,
-    speed: body.speed,
+    lat: isWithin500m || locationJammed ? body.userLat : null,
+    lng: isWithin500m || locationJammed ? body.userLng : null,
+    speed,
+    etaMinutes,
+    bearingDegrees,
+    locationJammed,
     isWithin500m,
     updatedAt: new Date().toISOString(),
   };
 
   return c.json({
     success: true,
-    distanceMetres: Math.round(distance),
+    distanceMetres: distance === null ? null : Math.round(distance),
     isWithin500m,
     allMembers: Object.values(membersStore),
   });
