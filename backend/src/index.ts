@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
-const app = new Hono()
-app.use('/api/*', cors())
+const app = new Hono();
+app.use('*', cors());
 
-app.get('/', (c) => c.text('Backend API is running!'))
+app.get('/', (c) => c.text('Backend API is running!'));
 
 // メンバーの状態
 interface MemberStatus {
@@ -30,8 +30,10 @@ interface Room {
   members: Record<string, MemberStatus>;
 }
 
-// メモリ内ストア (roomId -> Room)
+// ★ メモリ内ストア（欠けていた変数を追加）
 const roomsStore: Record<string, Room> = {};
+const membersStore: Record<string, MemberStatus> = {};
+let destination: { lat: number; lng: number } | null = null;
 
 // 距離計算 (Haversine)
 function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -52,34 +54,41 @@ function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: numbe
 // 1. 新規ルーム作成 API
 // --------------------------------------------------
 app.post('/api/rooms', async (c) => {
-  const body = await c.req.json<{
-    title: string;
-    targetName: string;
-    targetLat: number;
-    targetLng: number;
-    meetingTime: string;
-  }>();
+  try {
+    const body = await c.req.json<{
+      title: string;
+      targetName: string;
+      targetLat: number;
+      targetLng: number;
+      meetingTime: string;
+    }>();
 
-  // 6桁のランダムID生成 (例: "a1b2c3")
-  const roomId = Math.random().toString(36).substring(2, 8);
+    // ★ 重複チェック付きのID生成（被ったら自動で作り直す）
+    let roomId = '';
+    do {
+      roomId = crypto.randomUUID().split('-')[0]; // 8桁英数字
+    } while (roomsStore[roomId]);
 
-  const newRoom: Room = {
-    id: roomId,
-    title: body.title,
-    targetName: body.targetName,
-    targetLat: body.targetLat,
-    targetLng: body.targetLng,
-    meetingTime: body.meetingTime,
-    members: {},
-  };
+    const newRoom: Room = {
+      id: roomId,
+      title: body.title || '待ち合わせ',
+      targetName: body.targetName || '目的地',
+      targetLat: body.targetLat,
+      targetLng: body.targetLng,
+      meetingTime: body.meetingTime,
+      members: {},
+    };
 
-  roomsStore[roomId] = newRoom;
+    roomsStore[roomId] = newRoom;
 
-  return c.json({ success: true, roomId, room: newRoom });
+    return c.json({ success: true, roomId, room: newRoom });
+  } catch (err) {
+    return c.json({ success: false, error: 'Invalid payload' }, 400);
+  }
 });
 
 // --------------------------------------------------
-// 2. ルーム情報取得 API (アクセスしたとき用)
+// 2. ルーム情報取得 API
 // --------------------------------------------------
 app.get('/api/rooms/:roomId', (c) => {
   const roomId = c.req.param('roomId');
@@ -91,7 +100,7 @@ app.get('/api/rooms/:roomId', (c) => {
 
   return c.json({
     ...room,
-    members: Object.values(room.members), // 配列にして返す
+    members: Object.values(room.members),
   });
 });
 
@@ -105,7 +114,6 @@ app.post('/api/rooms/:roomId/join', async (c) => {
   const room = roomsStore[roomId];
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
-  // ランダムなユーザーID作成
   const userId = 'user_' + Math.random().toString(36).substring(2, 9);
 
   const newMember: MemberStatus = {
@@ -154,7 +162,7 @@ app.post('/api/rooms/:roomId/sync', async (c) => {
   if (room.members[body.userId]) {
     room.members[body.userId] = {
       ...room.members[body.userId],
-      lat: isWithin500m ? body.userLat : null, // 500m外なら隠す
+      lat: isWithin500m ? body.userLat : null,
       lng: isWithin500m ? body.userLng : null,
       speed: body.speed,
       isWithin500m,
@@ -171,7 +179,7 @@ app.post('/api/rooms/:roomId/sync', async (c) => {
 });
 
 // --------------------------------------------------
-// 5. ワンタップ遅延更新 API (+5分, +15分など)
+// 5. ワンタップ遅延更新 API
 // --------------------------------------------------
 app.post('/api/rooms/:roomId/delay', async (c) => {
   const roomId = c.req.param('roomId');
@@ -190,6 +198,9 @@ app.post('/api/rooms/:roomId/delay', async (c) => {
   });
 });
 
+// --------------------------------------------------
+// 旧互換用 / 汎用 API
+// --------------------------------------------------
 app.put('/api/destination', async (c) => {
   const body = await c.req.json<{ lat: unknown; lng: unknown }>();
 
@@ -217,4 +228,4 @@ app.get('/api/map-state', (c) => {
   });
 });
 
-export default app
+export default app;
