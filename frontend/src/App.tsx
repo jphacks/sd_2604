@@ -1,134 +1,366 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { MapApiClient } from './component/MapApiClient'
 import MapFeature from './component/MapFeature'
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://backend.yonu33.workers.dev').replace(/\/+$/, '')
-const defaultRoomTarget = { lat: 38.2606, lng: 140.8824 }
-const participantNameStorageKey = 'meetpoint.participant-name'
-const deviceIdStorageKey = 'meetpoint.device-id'
+
+const exactPlaceOverrides: Record<string, GeocodeResult> = {
+  '仙台駅': { lat: 38.2606, lng: 140.8824, displayName: '仙台駅' },
+}
+
+type GeocodeResult = {
+  lat: number
+  lng: number
+  displayName: string
+}
 
 function getRoomIdFromUrl(): string | null {
-	if (typeof window === 'undefined') return null
-	return new URLSearchParams(window.location.search).get('room')
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('room')
 }
 
 function setRoomIdInUrl(roomId: string) {
-	if (typeof window === 'undefined') return
-	const url = new URL(window.location.href)
-	url.searchParams.set('room', roomId)
-	window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  url.searchParams.set('room', roomId)
+  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
 }
 
-function getStoredParticipantName(): string {
-	if (typeof window === 'undefined') return ''
-	const saved = window.localStorage.getItem(participantNameStorageKey)
-	return saved?.trim() ?? ''
+function normalizePlaceText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\s\u3000]+/g, '')
+    .replace(/[‐‑‒–—−]/g, '-')
+    .trim()
 }
 
-function getOrCreateDeviceId(): string {
-	if (typeof window === 'undefined') return 'local-device'
-	const saved = window.localStorage.getItem(deviceIdStorageKey)
-	if (saved) return saved
-	const next = crypto.randomUUID()
-	window.localStorage.setItem(deviceIdStorageKey, next)
-	return next
+function createInitialMeetingTime(): string {
+  const date = new Date()
+  date.setHours(date.getHours() + 1)
+  date.setMinutes(0, 0, 0)
+  return date.toISOString().slice(0, 16)
+}
+
+async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null> {
+  const cleaned = placeName.trim()
+  if (!cleaned) return null
+
+  const normalizedQuery = normalizePlaceText(cleaned)
+  const exactOverride = exactPlaceOverrides[normalizedQuery]
+  if (exactOverride) return exactOverride
+
+  const url = new URL('https://nominatim.openstreetmap.org/search')
+  url.searchParams.set('q', cleaned)
+  url.searchParams.set('format', 'jsonv2')
+  url.searchParams.set('limit', '10')
+  url.searchParams.set('countrycodes', 'jp')
+  url.searchParams.set('accept-language', 'ja')
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      'Accept-Language': 'ja',
+      'User-Agent': 'MeetPointApp/1.0',
+    },
+  })
+
+  if (!response.ok) return null
+
+  const candidates = (await response.json()) as Array<{
+    lat?: string
+    lon?: string
+    name?: string
+    display_name?: string
+    address?: { country_code?: string }
+  }>
+
+  if (!Array.isArray(candidates) || candidates.length === 0) return null
+
+  const preferred = candidates.find((candidate) => {
+    if (!candidate.lat || !candidate.lon) return false
+    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
+
+    const directName = normalizePlaceText(candidate.name ?? '')
+    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
+
+    return (
+      (directName && (directName === normalizedQuery || directName.startsWith(normalizedQuery))) ||
+      (directDisplayName && (directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)))
+    )
+  })
+
+  if (!preferred || !preferred.lat || !preferred.lon) return null
+
+  return {
+    lat: Number(preferred.lat),
+    lng: Number(preferred.lon),
+    displayName: preferred.display_name ?? cleaned,
+  }
 }
 
 interface AppProps {
-	roomInfo?: {
-		title?: string
-		meetingPlace?: string
-		meetingTime?: string
-	}
-	participant?: {
-		id: string
-		name: string
-	}
+  roomInfo?: {
+    title?: string
+    meetingPlace?: string
+    meetingTime?: string
+  }
+  participant?: {
+    id: string
+    name: string
+  }
 }
 
 export default function App({ roomInfo, participant }: AppProps) {
-	const [apiClient] = useState(() => new MapApiClient(apiBaseUrl))
-	const [roomId, setRoomId] = useState<string | null>(() => getRoomIdFromUrl())
-	const [participantName, setParticipantName] = useState<string>(() => getStoredParticipantName())
-	const [deviceId] = useState(() => getOrCreateDeviceId())
-	const [isCreatingRoom, setIsCreatingRoom] = useState(false)
+  const [apiClient] = useState(() => new MapApiClient(apiBaseUrl))
+  const [roomId, setRoomId] = useState<string | null>(() => getRoomIdFromUrl())
+  const [creatorName, setCreatorName] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return window.localStorage.getItem('meetpoint-creator-name') ?? ''
+  })
+  const [placeName, setPlaceName] = useState('仙台駅')
+  const [addressText, setAddressText] = useState('')
+  const [meetingTime, setMeetingTime] = useState(createInitialMeetingTime)
+  const [isSearching, setIsSearching] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-	const resolvedParticipant = participant ?? {
-		id: deviceId,
-		name: participantName.trim() || '自分',
-	}
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('meetpoint-creator-name', creatorName)
+    }
+  }, [creatorName])
 
-	const handleCreateRoom = async () => {
-		const nextName = participantName.trim()
-		if (!nextName) return
+  const handleSearchByPlaceName = async () => {
+    setErrorMessage(null)
+    if (!placeName.trim()) {
+      setErrorMessage('場所名を入力してください。')
+      return
+    }
 
-		window.localStorage.setItem(participantNameStorageKey, nextName)
-		setParticipantName(nextName)
+    setIsSearching(true)
+    try {
+      const result = await geocodePlaceName(placeName)
+      if (!result) {
+        setErrorMessage('目的地を見つけられませんでした。別の表記でお試しください。')
+        setAddressText('')
+        return
+      }
+      setAddressText(result.displayName)
+    } finally {
+      setIsSearching(false)
+    }
+  }
 
-		if (roomId) return
+  const handleCreateRoom = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrorMessage(null)
 
-		setIsCreatingRoom(true)
-		try {
-			const created = await apiClient.createRoom({
-				title: roomInfo?.title ?? '待ち合わせ',
-				targetName: roomInfo?.meetingPlace ?? '目的地',
-				targetLat: defaultRoomTarget.lat,
-				targetLng: defaultRoomTarget.lng,
-				meetingTime: roomInfo?.meetingTime ?? new Date().toISOString(),
-				destinationName: roomInfo?.meetingPlace ?? '目的地',
-				destinationAddress: null,
-			})
-			const nextRoomId = created.roomId ?? created.room?.id
-			if (!nextRoomId) return
-			setRoomId(nextRoomId)
-			setRoomIdInUrl(nextRoomId)
-		} catch {
-			// API失敗時は手動で再試行できるように画面を維持する
-		} finally {
-			setIsCreatingRoom(false)
-		}
-	}
+    const trimmedCreatorName = creatorName.trim()
+    if (!trimmedCreatorName) {
+      setErrorMessage('作成者の名前を入力してください。')
+      return
+    }
 
-	const handleJoin = async (event: FormEvent<HTMLFormElement>) => {
-		event.preventDefault()
-		const nextName = participantName.trim()
-		if (!nextName) return
-		window.localStorage.setItem(participantNameStorageKey, nextName)
-		setParticipantName(nextName)
-		if (!roomId) {
-			await handleCreateRoom()
-		}
-	}
+    if (!placeName.trim()) {
+      setErrorMessage('場所名を入力してください。')
+      return
+    }
 
-	if (!roomId || !participantName.trim()) {
-		return (
-			<div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#f4f7f2', padding: 24 }}>
-				<form onSubmit={handleJoin} style={{ width: 'min(420px, 100%)', background: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 10px 35px rgba(25, 42, 35, 0.08)' }}>
-					<p style={{ margin: 0, letterSpacing: '0.08em', color: '#6d7c73', fontSize: 12, fontWeight: 700 }}>MEETPOINT</p>
-					<h1 style={{ margin: '12px 0 20px', fontSize: 32, color: '#1d2d28' }}>{roomId ? '入室' : '新しい部屋を作る'}</h1>
-					<label style={{ display: 'grid', gap: 8, color: '#52665d', fontSize: 12, fontWeight: 700, letterSpacing: '0.08em' }}>
-						<span>名前</span>
-						<input
-							type="text"
-							value={participantName}
-							onChange={(event) => setParticipantName(event.target.value)}
-							placeholder="自分"
-							maxLength={24}
-							style={{ minHeight: 40, borderRadius: 8, border: '1px solid #dfe5dd', padding: '0 12px', fontSize: 16 }}
-						/>
-					</label>
-					<p style={{ margin: '12px 0 20px', fontSize: 13, color: '#5a6d64' }}>
-						{roomId ? 'この端末での参加者名を入力してから入室してください。' : '名前を入力して部屋を作成してください。'}
-					</p>
-					<button type="submit" disabled={!participantName.trim() || isCreatingRoom} style={{ width: '100%', minHeight: 44, border: 'none', borderRadius: 10, background: '#1b5d4c', color: '#fff', fontSize: 15, fontWeight: 700, cursor: participantName.trim() && !isCreatingRoom ? 'pointer' : 'not-allowed', opacity: participantName.trim() && !isCreatingRoom ? 1 : 0.5 }}>
-						{isCreatingRoom ? '部屋を作成しています...' : roomId ? 'この部屋に入る' : '新しい部屋を作る'}
-					</button>
-				</form>
-			</div>
-		)
-	}
+    setIsSubmitting(true)
+    try {
+      const result = await geocodePlaceName(placeName)
+      if (!result) {
+        setErrorMessage('目的地を見つけられませんでした。別の表記でお試しください。')
+        return
+      }
 
-	return (
-		<MapFeature apiClient={apiClient} roomInfo={roomInfo} participant={resolvedParticipant} roomId={roomId} />
-	)
+      const created = await apiClient.createRoom({
+        title: '待ち合わせ',
+        targetName: placeName.trim(),
+        targetLat: result.lat,
+        targetLng: result.lng,
+        meetingTime: meetingTime || createInitialMeetingTime(),
+        destinationName: placeName.trim(),
+        destinationAddress: addressText.trim() || result.displayName,
+      })
+      const nextRoomId = created.roomId ?? created.room?.id
+      if (!nextRoomId) {
+        setErrorMessage('部屋の作成に失敗しました。もう一度お試しください。')
+        return
+      }
+
+      if (typeof window !== 'undefined') {
+        const ownerId = window.localStorage.getItem('meetpoint.participant-id') ?? crypto.randomUUID()
+        window.localStorage.setItem('meetpoint.participant-id', ownerId)
+        window.localStorage.setItem('meetpoint.participant-name', trimmedCreatorName)
+        window.localStorage.setItem(`meetpoint.room-owner.${nextRoomId}`, ownerId)
+        window.localStorage.setItem('meetpoint-last-room-id', nextRoomId)
+      }
+      setRoomId(nextRoomId)
+      setRoomIdInUrl(nextRoomId)
+    } catch {
+      setErrorMessage('部屋の作成に失敗しました。もう一度お試しください。')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (roomId) {
+    return <MapFeature apiClient={apiClient} roomInfo={roomInfo} participant={participant} roomId={roomId} />
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '32px 20px',
+        background: '#edf0e8',
+        fontFamily: 'Avenir Next, "Hiragino Kaku Gothic ProN", sans-serif',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 620,
+          padding: '28px 24px 22px',
+          borderRadius: 20,
+          background: 'rgba(255,255,255,0.68)',
+          boxShadow: '0 8px 30px rgba(24, 43, 37, 0.08)',
+          border: '1px solid rgba(127, 138, 128, 0.25)',
+        }}
+      >
+        <div style={{ marginBottom: 20, fontWeight: 800, letterSpacing: '0.08em', color: '#22352f', fontSize: 24 }}>
+          MEETPOINT
+        </div>
+
+        <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(2.2rem, 4vw, 3.4rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
+          新しい部屋を作る
+        </h1>
+
+        <form onSubmit={handleCreateRoom} style={{ display: 'grid', gap: 18 }}>
+          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
+            <span style={{ fontSize: 18 }}>作成者の名前</span>
+            <input
+              value={creatorName}
+              onChange={(event) => setCreatorName(event.target.value)}
+              placeholder="例: 田中さん"
+              style={{
+                padding: '16px 14px',
+                borderRadius: 12,
+                border: '1px solid #c8cfc7',
+                background: 'rgba(255,255,255,0.5)',
+                fontSize: 28,
+                fontWeight: 700,
+                outline: 'none',
+              }}
+            />
+          </label>
+
+          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
+            <span style={{ fontSize: 18 }}>場所名</span>
+            <input
+              value={placeName}
+              onChange={(event) => setPlaceName(event.target.value)}
+              placeholder="会津若松駅"
+              style={{
+                padding: '16px 14px',
+                borderRadius: 12,
+                border: '1px solid #c8cfc7',
+                background: 'rgba(255,255,255,0.5)',
+                fontSize: 28,
+                fontWeight: 700,
+                outline: 'none',
+              }}
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={handleSearchByPlaceName}
+            disabled={isSearching || !placeName.trim()}
+            style={{
+              padding: '14px 18px',
+              borderRadius: 12,
+              border: '1px solid #dbe1d7',
+              background: '#dfe7e1',
+              color: '#22352f',
+              fontSize: 18,
+              fontWeight: 700,
+              cursor: isSearching || !placeName.trim() ? 'not-allowed' : 'pointer',
+              opacity: isSearching || !placeName.trim() ? 0.6 : 1,
+            }}
+          >
+            {isSearching ? '検索中...' : '住所を自動検索'}
+          </button>
+
+          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
+            <span style={{ fontSize: 18 }}>住所・詳細</span>
+            <input
+              value={addressText}
+              onChange={(event) => setAddressText(event.target.value)}
+              placeholder="福島県会津若松市駅前町1-2-3"
+              style={{
+                padding: '16px 14px',
+                borderRadius: 12,
+                border: '1px solid #c8cfc7',
+                background: 'rgba(255,255,255,0.5)',
+                fontSize: 28,
+                fontWeight: 700,
+                outline: 'none',
+              }}
+            />
+          </label>
+
+          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
+            <span style={{ fontSize: 18 }}>集合日時</span>
+            <input
+              type="datetime-local"
+              value={meetingTime}
+              onChange={(event) => setMeetingTime(event.target.value)}
+              style={{
+                padding: '16px 14px',
+                borderRadius: 12,
+                border: '1px solid #c8cfc7',
+                background: 'rgba(255,255,255,0.5)',
+                fontSize: 28,
+                fontWeight: 700,
+                outline: 'none',
+              }}
+            />
+          </label>
+
+          <p style={{ margin: 0, color: '#47615d', fontSize: 18, lineHeight: 1.6 }}>
+            作成者の名前と集合場所、集合時刻を入力して部屋を作成してください。
+          </p>
+
+          {errorMessage && (
+            <p role="alert" style={{ margin: 0, color: '#d9553d', fontSize: 16, fontWeight: 700 }}>
+              {errorMessage}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting || !creatorName.trim() || !placeName.trim()}
+            style={{
+              marginTop: 8,
+              padding: '18px 18px',
+              borderRadius: 12,
+              border: 'none',
+              background: '#2a6052',
+              color: '#fff',
+              fontSize: 30,
+              fontWeight: 800,
+              cursor: isSubmitting || !creatorName.trim() || !placeName.trim() ? 'not-allowed' : 'pointer',
+              opacity: isSubmitting || !creatorName.trim() || !placeName.trim() ? 0.6 : 1,
+            }}
+          >
+            {isSubmitting ? '作成中...' : '新しい部屋を作る'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
 }

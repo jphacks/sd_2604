@@ -53,13 +53,19 @@ export class MapApiClient {
     const response = await this.request(endpoint)
     if (!response.ok) throw new Error(`Map state request failed: ${response.status}`)
 
-    const value = (await response.json()) as Partial<MapState>
+    const value = (await response.json()) as Partial<MapState> & { targetName?: string | null; destinationName?: string | null }
     if (!Array.isArray(value.members)) throw new Error('Invalid map state response')
 
     return {
       destination: this.validateDestination(value.destination),
-      destinationName: typeof value.destinationName === 'string' ? value.destinationName : null,
-      destinationAddress: typeof value.destinationAddress === 'string' ? value.destinationAddress : null,
+      destinationName: typeof value.destinationName === 'string' && value.destinationName.trim()
+        ? value.destinationName.trim()
+        : typeof value.targetName === 'string' && value.targetName.trim()
+          ? value.targetName.trim()
+          : null,
+      destinationAddress: typeof value.destinationAddress === 'string' && value.destinationAddress.trim()
+        ? value.destinationAddress.trim()
+        : null,
       meetingTime: typeof value.meetingTime === 'string' && Number.isFinite(Date.parse(value.meetingTime))
         ? value.meetingTime
         : null,

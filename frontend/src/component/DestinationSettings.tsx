@@ -2,6 +2,73 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import './DestinationSettings.css'
 import type { Destination, DestinationInput } from './mapTypes'
 
+const exactPlaceOverrides: Record<string, { lat: number; lng: number; displayName: string }> = {
+  '仙台駅': { lat: 38.2606, lng: 140.8824, displayName: '仙台駅' },
+}
+
+function normalizePlaceText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\s\u3000]+/g, '')
+    .replace(/[‐‑‒–—−]/g, '-')
+    .trim()
+}
+
+async function geocodePlaceName(placeName: string): Promise<{ lat: number; lng: number; displayName: string } | null> {
+  const cleaned = placeName.trim()
+  if (!cleaned) return null
+
+  const normalizedQuery = normalizePlaceText(cleaned)
+  const exactOverride = exactPlaceOverrides[normalizedQuery]
+  if (exactOverride) return exactOverride
+
+  const url = new URL('https://nominatim.openstreetmap.org/search')
+  url.searchParams.set('q', cleaned)
+  url.searchParams.set('format', 'jsonv2')
+  url.searchParams.set('limit', '10')
+  url.searchParams.set('countrycodes', 'jp')
+  url.searchParams.set('accept-language', 'ja')
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      'Accept-Language': 'ja',
+      'User-Agent': 'MeetPointApp/1.0',
+    },
+  })
+
+  if (!response.ok) return null
+
+  const candidates = (await response.json()) as Array<{
+    lat?: string
+    lon?: string
+    name?: string
+    display_name?: string
+    address?: { country_code?: string }
+  }>
+
+  if (!Array.isArray(candidates) || candidates.length === 0) return null
+
+  const preferred = candidates.find((candidate) => {
+    if (!candidate.lat || !candidate.lon) return false
+    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
+
+    const directName = normalizePlaceText(candidate.name ?? '')
+    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
+    return (
+      (directName && (directName === normalizedQuery || directName.startsWith(normalizedQuery))) ||
+      (directDisplayName && (directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)))
+    )
+  })
+
+  if (!preferred || !preferred.lat || !preferred.lon) return null
+
+  return {
+    lat: Number(preferred.lat),
+    lng: Number(preferred.lon),
+    displayName: preferred.display_name ?? cleaned,
+  }
+}
+
 interface DestinationSettingsProps {
   destination: Destination | null
   destinationName?: string | null
@@ -28,52 +95,6 @@ function parseCoordinates(latitude: string, longitude: string): Destination | nu
   return { lat, lng }
 }
 
-interface GeocodeResult {
-  lat: number
-  lng: number
-  displayName: string
-  address: string
-}
-
-async function geocodePlaceName(query: string): Promise<GeocodeResult | null> {
-  const normalized = query.trim()
-  if (!normalized) return null
-
-  const url = new URL('https://nominatim.openstreetmap.org/search')
-  url.searchParams.set('q', normalized)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '1')
-  url.searchParams.set('accept-language', 'ja')
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      Accept: 'application/json',
-      'Accept-Language': 'ja',
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('Geocoding failed')
-  }
-
-  const records = (await response.json()) as Array<{ lat?: string; lon?: string; display_name?: string; address?: Record<string, string> }>
-  const first = records[0]
-  if (!first || typeof first.lat !== 'string' || typeof first.lon !== 'string') return null
-
-  const lat = Number(first.lat)
-  const lng = Number(first.lon)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
-
-  return {
-    lat,
-    lng,
-    displayName: first.display_name || normalized,
-    address: first.address && typeof first.address === 'object'
-      ? Object.values(first.address).filter((value) => typeof value === 'string' && value.trim()).slice(0, 3).join(' / ')
-      : normalized,
-  }
-}
-
 export default function DestinationSettings({
   destination,
   destinationName,
@@ -91,10 +112,11 @@ export default function DestinationSettings({
   const [isOpen, setIsOpen] = useState(false)
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
+  const [placeQuery, setPlaceQuery] = useState('')
   const [landmarkName, setLandmarkName] = useState('')
   const [addressText, setAddressText] = useState('')
-  const [isGeocoding, setIsGeocoding] = useState(false)
-  const [geocodeError, setGeocodeError] = useState<string | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [isSearching, setIsSearching] = useState(false)
   const lastHandledPickVersion = useRef(0)
 
   useEffect(() => {
@@ -107,34 +129,32 @@ export default function DestinationSettings({
 
   const candidate = parseCoordinates(latitude, longitude)
 
-  const resolvePlaceAutomatically = async (placeName: string): Promise<Destination | null> => {
-    const trimmed = placeName.trim()
+  const handleSearchPlace = async () => {
+    const trimmed = placeQuery.trim()
     if (!trimmed) {
-      setGeocodeError('場所名を入力してください。')
-      return null
+      setSearchError('場所名を入力してください。')
+      return
     }
 
-    setIsGeocoding(true)
-    setGeocodeError(null)
-
+    setIsSearching(true)
+    setSearchError(null)
     try {
       const result = await geocodePlaceName(trimmed)
       if (!result) {
-        setGeocodeError('該当する場所が見つかりませんでした。別の表記でお試しください。')
-        return null
+        setSearchError('目的地を見つけられませんでした。別の表記でお試しください。')
+        return
       }
 
       setLandmarkName(trimmed)
-      setAddressText(result.address)
+      setAddressText(result.displayName)
       setLatitude(result.lat.toFixed(6))
       setLongitude(result.lng.toFixed(6))
+      setPlaceQuery(result.displayName)
       onPreviewChange({ lat: result.lat, lng: result.lng })
-      return { lat: result.lat, lng: result.lng }
     } catch {
-      setGeocodeError('住所の自動検索に失敗しました。入力内容を確認してください。')
-      return null
+      setSearchError('検索に失敗しました。別の表記でお試しください。')
     } finally {
-      setIsGeocoding(false)
+      setIsSearching(false)
     }
   }
 
@@ -142,8 +162,10 @@ export default function DestinationSettings({
     if (isLocked) return
     setLatitude(destination?.lat.toString() ?? '')
     setLongitude(destination?.lng.toString() ?? '')
+    setPlaceQuery(destinationName ?? '')
     setLandmarkName(destinationName ?? '')
     setAddressText(destinationAddress ?? '')
+    setSearchError(null)
     onPreviewChange(destination)
     setIsOpen(true)
   }
@@ -166,22 +188,13 @@ export default function DestinationSettings({
 
   const saveDestination = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (isSaving) return
-
-    let nextCandidate = candidate
-    if (!nextCandidate) {
-      const resolved = await resolvePlaceAutomatically(landmarkName)
-      if (!resolved) return
-      nextCandidate = resolved
-    }
-
-    if (!nextCandidate) return
+    if (!candidate || isSaving) return
 
     const saved = await onSave({
-      lat: nextCandidate.lat,
-      lng: nextCandidate.lng,
-      name: landmarkName.trim() || null,
-      address: addressText.trim() || null,
+      lat: candidate.lat,
+      lng: candidate.lng,
+      name: landmarkName.trim() || destinationName || placeQuery.trim() || null,
+      address: addressText.trim() || destinationAddress || null,
     })
     if (!saved) return
 
@@ -199,7 +212,7 @@ export default function DestinationSettings({
         disabled={isSaving || isLocked}
         onClick={isOpen ? closeSettings : openSettings}
       >
-        {isLocked ? '目的地確定済み' : isOpen ? '閉じる' : destination ? '目的地を変更' : '目的地を設定'}
+        {isOpen ? '閉じる' : destination ? '目的地を変更' : '目的地を設定'}
       </button>
 
       {isOpen && (
@@ -215,36 +228,28 @@ export default function DestinationSettings({
           </div>
 
           <p className="destination-settings__hint">
-            入力した場所名から住所と座標を自動で探して、確定保存できます。
+            地図をクリックするか、場所名を検索して座標を補完してください。
           </p>
 
-          <label>
-            場所名
+          <div className="destination-settings__search-row" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <input
               type="text"
-              value={landmarkName}
-              onChange={(event) => setLandmarkName(event.target.value)}
-              placeholder="会津若松駅"
-              maxLength={60}
+              value={placeQuery}
+              onChange={(event) => setPlaceQuery(event.target.value)}
+              placeholder="例: 仙台駅"
+              style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #c7d0ca', fontSize: 16 }}
             />
-          </label>
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" onClick={() => void resolvePlaceAutomatically(landmarkName)} disabled={isGeocoding || !landmarkName.trim()}>
-              {isGeocoding ? '検索中...' : '住所を自動検索'}
+            <button
+              type="button"
+              onClick={handleSearchPlace}
+              disabled={isSearching || !placeQuery.trim()}
+              style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #c7d0ca', background: '#dfe9e3', fontWeight: 700, cursor: isSearching || !placeQuery.trim() ? 'not-allowed' : 'pointer' }}
+            >
+              {isSearching ? '検索中...' : '住所を自動検索'}
             </button>
           </div>
 
-          <label>
-            住所・詳細
-            <input
-              type="text"
-              value={addressText}
-              onChange={(event) => setAddressText(event.target.value)}
-              placeholder="東京都渋谷区神南1-2-3"
-              maxLength={120}
-            />
-          </label>
+          {searchError && <p className="destination-settings__error" role="alert">{searchError}</p>}
 
           <button
             className={`destination-settings__pick${isPickingOnMap ? ' is-active' : ''}`}
@@ -283,14 +288,33 @@ export default function DestinationSettings({
             </label>
           </div>
 
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span>目的地名</span>
+            <input
+              type="text"
+              value={landmarkName}
+              onChange={(event) => setLandmarkName(event.target.value)}
+              placeholder="例: 仙台駅"
+            />
+          </label>
+
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span>住所・詳細</span>
+            <input
+              type="text"
+              value={addressText}
+              onChange={(event) => setAddressText(event.target.value)}
+              placeholder="例: 仙台市青葉区一番町"
+            />
+          </label>
+
           <p className="destination-settings__scope-note">
             保存するとこの部屋の共有地図に反映されます。URL の room パラメータに部屋IDが保持されます。
           </p>
 
-          {geocodeError && <p className="destination-settings__error" role="alert">{geocodeError}</p>}
           {saveError && <p className="destination-settings__error" role="alert">{saveError}</p>}
 
-          <button className="destination-settings__save" type="submit" disabled={(!candidate && !landmarkName.trim()) || isSaving}>
+          <button className="destination-settings__save" type="submit" disabled={!candidate || isSaving}>
             {isSaving ? '保存中...' : '目的地を共有保存'}
           </button>
         </form>

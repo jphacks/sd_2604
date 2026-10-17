@@ -53,6 +53,16 @@ function getStoredParticipantName(defaultName: string): string {
   return defaultName
 }
 
+function setStoredOwnerId(roomId: string | null | undefined, ownerId: string): void {
+  if (!roomId) return
+
+  try {
+    localStorage.setItem(`meetpoint.room-owner.${roomId}`, ownerId)
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function formatDistance(metres: number): string {
   return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`
 }
@@ -65,14 +75,31 @@ export default function MemberLocationSharing({
   userName = '自分',
 }: MemberLocationSharingProps) {
   const [participantId] = useState(userId ?? getParticipantId)
-  const [participantName] = useState(() => getStoredParticipantName(userName || '自分'))
+  const [participantName, setParticipantName] = useState(() => getStoredParticipantName(userName || '自分'))
   const [isSharing, setIsSharing] = useState(false)
   const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
   const [locationStatus, setLocationStatus] = useState<OwnLocationStatus | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [namePromptOpen, setNamePromptOpen] = useState(() => !localStorage.getItem('meetpoint.participant-name'))
   const jamOutsideRadiusRef = useRef(jamOutsideRadius)
   const destinationLat = destination?.lat
   const destinationLng = destination?.lng
+
+  useEffect(() => {
+    setNamePromptOpen(!localStorage.getItem('meetpoint.participant-name'))
+  }, [roomId])
+
+  useEffect(() => {
+    const nextName = (userName || '自分').trim()
+    if (nextName) {
+      setParticipantName(nextName)
+      try {
+        localStorage.setItem('meetpoint.participant-name', nextName)
+      } catch {
+        // ignore storage failures
+      }
+    }
+  }, [userName])
 
   const displayName = participantName.trim() || '自分'
 
@@ -94,68 +121,68 @@ export default function MemberLocationSharing({
       if (disposed) return
       isUsingLowAccuracy = !enableHighAccuracy
       watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        if (disposed) return
-        setErrorMessage(null)
-        const sample = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          speed: position.coords.speed,
-          timestamp: position.timestamp,
-        }
-        const update = locationService.createUpdate(
-          participantId,
-          displayName,
-          sample,
-          target,
-          jamOutsideRadiusRef.current,
-        )
+        (position) => {
+          if (disposed) return
+          setErrorMessage(null)
+          const sample = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            speed: position.coords.speed,
+            timestamp: position.timestamp,
+          }
+          const update = locationService.createUpdate(
+            participantId,
+            displayName,
+            sample,
+            target,
+            jamOutsideRadiusRef.current,
+          )
 
-        setLocationStatus({
-          distanceMetres: update.distanceMetres,
-          etaMinutes: update.payload.etaMinutes,
-          paceIsEstimated: update.paceIsEstimated,
-          locationJammed: update.payload.locationJammed,
-        })
-
-        const now = Date.now()
-        if (now - lastSyncAt < 5000) return
-        lastSyncAt = now
-
-        void apiClient.syncLocation(roomId, update.payload)
-          .then(() => {
-            if (!disposed) setErrorMessage(null)
+          setLocationStatus({
+            distanceMetres: update.distanceMetres,
+            etaMinutes: update.payload.etaMinutes,
+            paceIsEstimated: update.paceIsEstimated,
+            locationJammed: update.payload.locationJammed,
           })
-          .catch(() => {
-            if (!disposed) setErrorMessage('位置を送信できません。通信を確認しています。')
-          })
-      },
-      (error) => {
-        if (disposed) return
-        if (error.code === error.PERMISSION_DENIED) {
-          setErrorMessage('位置情報が許可されていません。ブラウザーと端末の設定で許可してください。')
-          setIsSharing(false)
-          return
-        }
 
-        if (!isUsingLowAccuracy) {
-          setErrorMessage('GPSで現在地を取得できないため、ネットワーク測位へ切り替えています。')
-          if (watchId !== null) navigator.geolocation.clearWatch(watchId)
-          startWatching(false)
-          return
-        }
+          const now = Date.now()
+          if (now - lastSyncAt < 5000) return
+          lastSyncAt = now
 
-        const message = error.code === error.TIMEOUT
-          ? '現在地の取得に時間がかかっています。屋外へ移動するか、端末の位置情報サービスを確認してください。'
-          : '端末が現在地を特定できません。位置情報サービスとWi-Fi・モバイル通信を確認してください。'
-        setErrorMessage(message)
-      },
-      {
-        enableHighAccuracy,
-        maximumAge: enableHighAccuracy ? 5000 : 15000,
-        timeout: enableHighAccuracy ? 15000 : 30000,
-      },
+          void apiClient.syncLocation(roomId, update.payload)
+            .then(() => {
+              if (!disposed) setErrorMessage(null)
+            })
+            .catch(() => {
+              if (!disposed) setErrorMessage('位置を送信できません。通信を確認しています。')
+            })
+        },
+        (error) => {
+          if (disposed) return
+          if (error.code === error.PERMISSION_DENIED) {
+            setErrorMessage('位置情報が許可されていません。ブラウザーと端末の設定で許可してください。')
+            setIsSharing(false)
+            return
+          }
+
+          if (!isUsingLowAccuracy) {
+            setErrorMessage('GPSで現在地を取得できないため、ネットワーク測位へ切り替えています。')
+            if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+            startWatching(false)
+            return
+          }
+
+          const message = error.code === error.TIMEOUT
+            ? '現在地の取得に時間がかかっています。屋外へ移動するか、端末の位置情報サービスを確認してください。'
+            : '端末が現在地を特定できません。位置情報サービスとWi-Fi・モバイル通信を確認してください。'
+          setErrorMessage(message)
+        },
+        {
+          enableHighAccuracy,
+          maximumAge: enableHighAccuracy ? 5000 : 15000,
+          timeout: enableHighAccuracy ? 15000 : 30000,
+        },
       )
     }
 
@@ -166,6 +193,25 @@ export default function MemberLocationSharing({
       if (watchId !== null) navigator.geolocation.clearWatch(watchId)
     }
   }, [apiClient, destinationLat, destinationLng, displayName, isSharing, participantId, roomId])
+
+  const handleNameChange = (nextName: string) => {
+    const trimmed = nextName.trimStart().slice(0, 24)
+    setParticipantName(trimmed)
+    try {
+      localStorage.setItem('meetpoint.participant-name', trimmed || '自分')
+      setNamePromptOpen(false)
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  const saveOwnerName = (nextName: string) => {
+    const trimmed = nextName.trimStart().slice(0, 24) || '自分'
+    handleNameChange(trimmed)
+    if (roomId && participantId) {
+      setStoredOwnerId(roomId, participantId)
+    }
+  }
 
   const toggleSharing = () => {
     if (!destination) {
@@ -195,10 +241,10 @@ export default function MemberLocationSharing({
           </div>
         </div>
 
-        <label className="location-sharing__name-field">
+        <div className="location-sharing__name-field">
           <span>名前</span>
-          <input type="text" value={participantName} readOnly aria-label="参加者名" />
-        </label>
+          <strong>{participantName || '自分'}</strong>
+        </div>
 
         {isSharing && locationStatus && (
           <div className="location-sharing__estimate">
@@ -221,6 +267,23 @@ export default function MemberLocationSharing({
           {isSharing ? '共有を停止' : '現在地を共有'}
         </button>
       </div>
+
+      {namePromptOpen && (
+        <div className="location-sharing__name-prompt">
+          <p>初回アクセス時に名前を入力してください。</p>
+          <input
+            type="text"
+            value={participantName || ''}
+            onChange={(event) => {
+              const next = event.target.value
+              if (!next.trim()) return
+              saveOwnerName(next)
+            }}
+            maxLength={24}
+            placeholder="自分"
+          />
+        </div>
+      )}
 
       <div className="location-sharing__privacy">
         <label className="location-sharing__jam-toggle">

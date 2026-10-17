@@ -124,6 +124,7 @@ app.get('/api/rooms/:roomId', async (c) => {
 
   return c.json({
     ...room,
+    targetName: room.targetName,
     members: Object.values(room.members),
   });
 });
@@ -365,6 +366,7 @@ app.get('/api/rooms/:roomId/map-state', async (c) => {
 
   return c.json({
     destination: { lat: room.targetLat, lng: room.targetLng },
+    targetName: room.targetName,
     destinationName: room.destinationName ?? room.targetName ?? '目的地',
     destinationAddress: room.destinationAddress ?? null,
     meetingTime: room.meetingTime,
