@@ -1,4 +1,4 @@
-import type { Destination, MapState } from './mapTypes'
+import type { Destination, LocationSyncPayload, MapState } from './mapTypes'
 
 export class MapApiClient {
   private readonly baseUrl: string
@@ -35,6 +35,15 @@ export class MapApiClient {
     if (!updatedDestination) throw new Error('Invalid destination response')
 
     return updatedDestination
+  }
+
+  async syncLocation(payload: LocationSyncPayload): Promise<void> {
+    const response = await this.request(`${this.baseUrl}/api/location/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(`Location sync failed: ${response.status}`)
   }
 
   private validateDestination(value: unknown): Destination | null {

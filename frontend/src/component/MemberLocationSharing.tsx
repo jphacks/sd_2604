@@ -1,0 +1,189 @@
+import { useEffect, useRef, useState } from 'react'
+import type { MapApiClient } from './MapApiClient'
+import { MemberLocationService } from './MemberLocationService'
+import type { Destination } from './mapTypes'
+import './MemberLocationSharing.css'
+
+interface MemberLocationSharingProps {
+  apiClient: MapApiClient
+  destination: Destination | null
+  userId?: string
+  userName?: string
+}
+
+interface OwnLocationStatus {
+  distanceMetres: number
+  etaMinutes: number | null
+  locationJammed: boolean
+}
+
+function getParticipantId(): string {
+  const storageKey = 'meetpoint.participant-id'
+
+  try {
+    const savedId = localStorage.getItem(storageKey)
+    if (savedId) return savedId
+
+    const newId = crypto.randomUUID()
+    localStorage.setItem(storageKey, newId)
+    return newId
+  } catch {
+    return `participant-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  }
+}
+
+function formatDistance(metres: number): string {
+  return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`
+}
+
+export default function MemberLocationSharing({
+  apiClient,
+  destination,
+  userId,
+  userName = '自分',
+}: MemberLocationSharingProps) {
+  const [participantId] = useState(userId ?? getParticipantId)
+  const [isSharing, setIsSharing] = useState(false)
+  const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
+  const [locationStatus, setLocationStatus] = useState<OwnLocationStatus | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const jamOutsideRadiusRef = useRef(jamOutsideRadius)
+  const destinationLat = destination?.lat
+  const destinationLng = destination?.lng
+
+  useEffect(() => {
+    jamOutsideRadiusRef.current = jamOutsideRadius
+  }, [jamOutsideRadius])
+
+  useEffect(() => {
+    if (!isSharing || destinationLat === undefined || destinationLng === undefined) return
+    const target = { lat: destinationLat, lng: destinationLng }
+
+    const locationService = new MemberLocationService()
+    let disposed = false
+    let lastSyncAt = 0
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (disposed) return
+        const sample = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          speed: position.coords.speed,
+          timestamp: position.timestamp,
+        }
+        const update = locationService.createUpdate(
+          participantId,
+          userName,
+          sample,
+          target,
+          jamOutsideRadiusRef.current,
+        )
+
+        setLocationStatus({
+          distanceMetres: update.distanceMetres,
+          etaMinutes: update.payload.etaMinutes,
+          locationJammed: update.payload.locationJammed,
+        })
+
+        const now = Date.now()
+        if (now - lastSyncAt < 5000) return
+        lastSyncAt = now
+
+        void apiClient.syncLocation(update.payload)
+          .then(() => {
+            if (!disposed) setErrorMessage(null)
+          })
+          .catch(() => {
+            if (!disposed) setErrorMessage('位置を送信できません。通信を確認しています。')
+          })
+      },
+      (error) => {
+        if (disposed) return
+        const message = error.code === error.PERMISSION_DENIED
+          ? '位置情報の利用が許可されていません。ブラウザーの設定を確認してください。'
+          : error.code === error.TIMEOUT
+            ? '現在地を取得できませんでした。受信状態を確認してください。'
+            : '現在地の取得中にエラーが発生しました。'
+        setErrorMessage(message)
+        setIsSharing(false)
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 20000,
+      },
+    )
+
+    return () => {
+      disposed = true
+      navigator.geolocation.clearWatch(watchId)
+    }
+  }, [apiClient, destinationLat, destinationLng, isSharing, participantId, userName])
+
+  const toggleSharing = () => {
+    if (!destination) {
+      setErrorMessage('先に目的地を設定してください。')
+      return
+    }
+    if (!isSharing && !navigator.geolocation) {
+      setErrorMessage('このブラウザーでは位置情報を利用できません。')
+      return
+    }
+    setErrorMessage(null)
+    setIsSharing((current) => !current)
+  }
+
+  return (
+    <div className="location-sharing" aria-live="polite">
+      <div className="location-sharing__summary">
+        <div className="location-sharing__identity">
+          <span className={`location-sharing__indicator${isSharing ? ' is-active' : ''}`} />
+          <div>
+            <p className="location-sharing__eyebrow">MY LOCATION</p>
+            <strong>{isSharing ? '位置情報を共有中' : '位置情報は共有していません'}</strong>
+          </div>
+        </div>
+
+        {isSharing && locationStatus && (
+          <div className="location-sharing__estimate">
+            <span>直線距離 {formatDistance(locationStatus.distanceMetres)}</span>
+            <strong>
+              {locationStatus.etaMinutes === null
+                ? 'ペース計測中'
+                : locationStatus.etaMinutes === 0
+                  ? '到着圏内'
+                  : `到着目安 ${locationStatus.etaMinutes}分`}
+            </strong>
+          </div>
+        )}
+
+        <button
+          className={`location-sharing__toggle${isSharing ? ' is-sharing' : ''}`}
+          type="button"
+          onClick={toggleSharing}
+        >
+          {isSharing ? '共有を停止' : '現在地を共有'}
+        </button>
+      </div>
+
+      <div className="location-sharing__privacy">
+        <label className="location-sharing__jam-toggle">
+          <input
+            type="checkbox"
+            checked={jamOutsideRadius}
+            onChange={(event) => setJamOutsideRadius(event.target.checked)}
+          />
+          <span>目的地から500mより外では位置をぼかす</span>
+        </label>
+        <p className={!jamOutsideRadius ? 'is-warning' : undefined}>
+          {jamOutsideRadius
+            ? '500m以内は正確な位置、圏外は端末上で約700m単位に丸めた位置を送信します。到着目安と方角は別に共有します。'
+            : 'OFFでは正確な現在地を通信します。サーバーは500m圏外の座標を保存せず、地図には表示されません。'}
+        </p>
+      </div>
+
+      {errorMessage && <p className="location-sharing__error" role="status">{errorMessage}</p>}
+    </div>
+  )
+}

@@ -23,6 +23,11 @@ function formatDistance(metres: number): string {
   return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`
 }
 
+function formatBearing(degrees: number | null | undefined): string | null {
+  if (degrees === null || degrees === undefined) return null
+  return ['北', '北東', '東', '南東', '南', '南西', '西', '北西'][Math.round(degrees / 45) % 8]
+}
+
 interface DestinationMapProps {
   state: MapState | null
   destination: Destination | null
@@ -48,7 +53,9 @@ export default function DestinationMap({
     (member): member is MemberStatus & { lat: number; lng: number } =>
       member.lat !== null &&
       member.lng !== null &&
-      (!destination || getStraightLineDistanceMetres({ lat: member.lat, lng: member.lng }, destination) <= 500),
+      (member.locationJammed === true ||
+        !destination ||
+        getStraightLineDistanceMetres({ lat: member.lat, lng: member.lng }, destination) <= 500),
   )
 
   const radiusCoordinates = destination ? Array.from({ length: 65 }, (_, index) => {
@@ -162,13 +169,29 @@ export default function DestinationMap({
       {visibleMembers.map((member) => (
         <Marker key={member.id} longitude={member.lng} latitude={member.lat} anchor="bottom">
           <div
-            className={`map-marker map-marker--member${isPickingOnMap ? ' map-marker--transparent' : ''}`}
-            aria-label={`${member.name}の現在地${destination ? `、目的地まで${formatDistance(getStraightLineDistanceMetres(member, destination))}` : ''}`}
+            className={`map-marker map-marker--member${member.locationJammed ? ' map-marker--jammed' : ''}${isPickingOnMap ? ' map-marker--transparent' : ''}`}
+            aria-label={member.locationJammed
+              ? `${member.name}のおおよその位置${formatBearing(member.bearingDegrees) ? `、${formatBearing(member.bearingDegrees)}方向` : ''}${member.etaMinutes === null || member.etaMinutes === undefined ? '' : `、到着目安${member.etaMinutes}分`}`
+              : `${member.name}の現在地${destination ? `、目的地まで${formatDistance(getStraightLineDistanceMetres(member, destination))}` : ''}${member.etaMinutes === null || member.etaMinutes === undefined ? '' : `、到着目安${member.etaMinutes}分`}`}
             title={member.name}
           >
             <span className="map-marker__member-label">
               <strong>{member.name}</strong>
-              {destination && <span>{formatDistance(getStraightLineDistanceMetres(member, destination))}</span>}
+              {member.locationJammed ? (
+                <span>
+                  {formatBearing(member.bearingDegrees) ?? '方角不明'}方面
+                  {member.etaMinutes === null || member.etaMinutes === undefined
+                    ? ' · 計測中'
+                    : ` · 約${member.etaMinutes}分`}
+                </span>
+              ) : (
+                <span>
+                  {destination ? formatDistance(getStraightLineDistanceMetres(member, destination)) : '位置共有中'}
+                  {member.etaMinutes === null || member.etaMinutes === undefined
+                    ? ''
+                    : ` · 約${member.etaMinutes}分`}
+                </span>
+              )}
             </span>
             <span className="map-marker__avatar" aria-hidden="true">
               {member.name.slice(0, 1)}

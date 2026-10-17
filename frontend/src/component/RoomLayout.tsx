@@ -46,7 +46,7 @@ export default function RoomLayout({
           <span className="map-legend__destination" />
           <span>目的地</span>
           <span className="map-legend__member" />
-          <span>500m以内の参加者</span>
+          <span>参加者（圏外は概算）</span>
         </div>
       </section>
 

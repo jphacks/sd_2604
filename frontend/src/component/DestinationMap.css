@@ -71,3 +71,15 @@
   font-size: 9px;
   font-variant-numeric: tabular-nums;
 }
+
+.map-marker--jammed .map-marker__avatar {
+  background: #ad7932;
+}
+
+.map-marker--jammed .map-marker__member-label {
+  border-color: rgb(173 121 50 / 35%);
+}
+
+.map-marker--jammed .map-marker__member-label span {
+  color: #8a6128;
+}
