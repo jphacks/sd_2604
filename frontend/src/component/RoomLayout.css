@@ -1,4 +1,5 @@
 .room-layout {
+  --meeting-label-size: 20px;
   display: grid;
   width: 100%;
   height: 100%;
@@ -8,98 +9,125 @@
   background: #f7f7f1;
 }
 
+@media (max-width: 640px) {
+  .room-layout {
+    --meeting-label-size: clamp(20px, 7vw, 28px);
+  }
+}
+
 .room-header {
   position: relative;
-  z-index: 2;
-  display: flex;
-  min-height: 88px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 14px 30px;
+  z-index: 10;
+  padding: 12px 20px 14px;
   border-bottom: 1px solid #e2e6df;
   background: #fffefa;
 }
 
-.room-heading {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
+.room-header__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* PC時に右へ広がるのを防ぎ、下段の「時刻」の幅にピタッと合わせる */
+  width: max-content; 
 }
 
-.room-eyebrow {
-  align-self: center;
-  margin: 0;
-  color: #738079;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1.1px;
-  white-space: nowrap;
+.room-header__top {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: flex-end;
 }
 
-.room-heading h1 {
-  min-width: 0;
-  margin: 0;
-  color: #22352f;
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
-  font-size: 21px;
-  font-weight: 600;
-  line-height: 1.35;
+.room-header__top-left {
+  /* 文字サイズの2文字分（合と時の間）に中心（translateX）を合わせる魔法の配置 */
+  position: absolute;
+  left: calc(var(--meeting-label-size) * 2);
+  bottom: -4px;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
 }
 
-.room-id-chip {
+.room-id-block {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  width: fit-content;
-  margin-top: 2px;
   padding: 4px 8px;
-  border: 1px solid #d9e0d6;
-  border-radius: 999px;
-  background: #f3f7f1;
-  color: #3d5f55;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1.15;
+  text-align: center;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
-.room-meeting-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 18px;
-  margin-top: 3px;
+.room-id-block:hover {
+  background: #f0f4f1;
+  border-color: #d9e2dc;
 }
 
-.room-meeting-place,
-.room-meeting-time {
-  margin: 0;
+.room-id-block:active {
+  transform: translateY(1px);
+}
+
+.room-id-block__label {
   color: #52665d;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.room-id-block.is-copied {
+  background: #e5f1e9;
+  border-color: #b7d9c4;
+}
+
+.room-id-block.is-copied .room-id-block__label {
+  color: #237765;
+}
+
+.room-id-block__value {
+  color: #77837c;
+  font-family: monospace;
   font-size: 11px;
-  line-height: 1.45;
 }
 
-.room-meeting-place strong,
-.room-meeting-time strong {
-  margin-left: 5px;
-  color: #22352f;
-  font-weight: 650;
-}
-
-.room-header .connection-status {
-  flex: 0 0 auto;
-  margin-left: 0;
-}
-
-.room-header__right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.room-header__actions,
-.room-header__tools {
+.room-header__top-right {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-bottom: 2px;
+}
+
+.room-date {
+  color: #52665d;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.connection-status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: #53a283;
+  box-shadow: 0 0 0 3px rgb(83 162 131 / 18%);
+}
+
+.connection-status-dot.is-error {
+  background: #d9553d;
+  box-shadow: 0 0 0 3px rgb(217 85 61 / 18%);
+}
+
+.room-header__bottom {
+  display: flex;
+  width: 100%;
+  align-items: center;
 }
 
 .room-workspace {
@@ -115,7 +143,6 @@
   position: relative;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
   border: 1px solid #dfe5dd;
   border-radius: 5px;
   background: #e7ece5;
@@ -124,6 +151,8 @@
 .room-map__canvas {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
 }
 
 .room-map__canvas .maplibregl-map {
@@ -133,34 +162,34 @@
 
 .room-map__controls {
   position: absolute;
-  z-index: 2;
-  top: 18px;
-  right: 18px;
+  z-index: 5;
+  top: 12px;
+  right: 12px;
 }
 
 .map-legend {
   position: absolute;
   z-index: 2;
-  bottom: 18px;
-  left: 18px;
+  bottom: 12px;
+  left: 12px;
   display: flex;
-  min-height: 39px;
+  min-height: 32px;
   align-items: center;
-  gap: 9px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 6px 10px;
   border: 1px solid rgb(226 230 223 / 90%);
   border-radius: 5px;
   background: rgb(255 254 250 / 96%);
   box-shadow: 0 3px 14px rgb(33 52 43 / 10%);
   color: #52665d;
-  font-size: 11px;
+  font-size: 10px;
   white-space: nowrap;
 }
 
 .map-legend__destination,
 .map-legend__member {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   flex: 0 0 auto;
   border: 2px solid #fffefa;
   border-radius: 50%;
@@ -169,22 +198,21 @@
 }
 
 .map-legend__member {
-  margin-left: 7px;
+  margin-left: 4px;
   background: #237765;
 }
 
 .room-feature-slot {
   position: relative;
   z-index: 2;
-  max-height: min(30vh, 280px);
-  overflow: auto;
   border-top: 1px solid #e2e6df;
   background: #fffefa;
 }
 
 @media (max-width: 640px) {
   .room-layout {
-    display: block;
+    display: flex;
+    flex-direction: column;
     height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
@@ -192,54 +220,22 @@
   }
 
   .room-header {
-    min-height: 0;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 10px 13px 11px;
+    padding: 14px 0 16px;
   }
 
-  .room-heading {
-    gap: 3px;
+  .room-header__inner {
+    width: 88%;
+    margin: 0 auto;
+    gap: 4px;
   }
 
-  .room-eyebrow {
-    font-size: 8px;
-  }
-
-  .room-heading h1 {
-    font-size: 18px;
-  }
-
-  .room-meeting-meta {
-    display: grid;
-    gap: 1px;
-    margin-top: 2px;
-  }
-
-  .room-meeting-place,
-  .room-meeting-time {
-    overflow-wrap: anywhere;
-    font-size: 10px;
-  }
-
-  .room-header .connection-status {
-    gap: 6px;
-    padding-left: 9px;
-    font-size: 9px;
-  }
-
-  .room-header__right {
-    gap: 9px;
-  }
-
-  .room-header__tools {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 5px;
+  .room-date {
+    font-size: 13px;
   }
 
   .room-workspace {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: 0;
     padding: 0;
@@ -248,37 +244,26 @@
   .room-map {
     width: 100%;
     height: auto;
-    min-height: 0;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 16 / 10;
     border-right: 0;
     border-left: 0;
     border-radius: 0;
   }
 
   .room-member-status {
-    min-height: 120px;
+    flex: 1;
+    min-height: 140px;
   }
 
   .map-legend {
     bottom: 8px;
     left: 8px;
-    gap: 6px;
-    min-height: 30px;
-    padding: 5px 7px;
+    padding: 4px 7px;
     font-size: 9px;
   }
 
-  .map-legend__member {
-    margin-left: 2px;
-  }
-
   .room-map__controls {
-    top: 8px;
-    right: 8px;
-  }
-
-  .room-feature-slot {
-    max-height: none;
-    overflow: visible;
+    top: 10px;
+    right: 10px;
   }
 }

@@ -35,7 +35,6 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
   const [mapPickedPoint, setMapPickedPoint] = useState<Destination | null>(null)
   const [mapPickVersion, setMapPickVersion] = useState(0)
   const [viewRevision, setViewRevision] = useState(0)
-  const [destinationLocked, setDestinationLocked] = useState(false)
 
   useEffect(() => {
     let disposed = false
@@ -61,22 +60,8 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
     }
   }, [apiClient, roomId])
 
-  useEffect(() => {
-    setDestinationLocked(Boolean(mapState?.destination && (mapState.destinationName || mapState.destinationAddress)))
-  }, [mapState])
-
   const destination = previewDestination ?? mapState?.destination ?? null
-  const destinationName = mapState?.destinationName ?? roomInfo?.meetingPlace ?? '目的地'
-  const destinationAddress = mapState?.destinationAddress ?? null
   const meetingTime = roomInfo?.meetingTime ?? mapState?.meetingTime ?? null
-  const roomTitle = roomInfo?.title ?? '待ち合わせ'
-  const destinationLabel = destinationAddress
-    ? `${destinationName} / ${destinationAddress}`
-    : destinationName && destinationName.trim()
-      ? destinationName
-      : destination
-        ? `${destination.lat.toFixed(5)}, ${destination.lng.toFixed(5)}`
-        : '目的地未設定'
 
   const saveDestination = async (nextDestination: DestinationInput) => {
     setIsSavingDestination(true)
@@ -84,7 +69,6 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
 
     try {
       const updatedDestination = await apiClient.updateDestination(roomId, nextDestination)
-      setDestinationLocked(true)
       setMapState((current) => ({
         destination: { lat: updatedDestination.lat, lng: updatedDestination.lng },
         destinationName: updatedDestination.name ?? current?.destinationName ?? null,
@@ -133,35 +117,32 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
 
   return (
     <RoomLayout
-      title={roomTitle}
       roomId={roomId}
-      meetingPlace={destinationLabel}
       meetingTime={meetingTime ?? undefined}
-      connectionLabel={connectionError ? 'APIに接続できません' : mapState ? '5秒ごとに更新' : '接続中'}
+      connectionLabel={connectionError ? 'Disconnected' : mapState ? 'Active' : 'Connecting'}
       connectionError={connectionError}
-      headerActions={
-        <div className="room-header__tools">
-          <MeetingTimeSettings
-            meetingTime={meetingTime}
-            isSaving={isSavingMeetingTime}
-            errorMessage={meetingTimeSaveError}
-            onSave={saveMeetingTime}
-          />
-          <DestinationSettings
-            destination={destination}
-            destinationName={mapState?.destinationName ?? roomInfo?.meetingPlace ?? null}
-            destinationAddress={mapState?.destinationAddress ?? null}
-            isSaving={isSavingDestination}
-            saveError={destinationSaveError}
-            isPickingOnMap={isPickingOnMap}
-            mapPickedPoint={mapPickedPoint}
-            mapPickVersion={mapPickVersion}
-            isLocked={destinationLocked}
-            onPickingChange={setIsPickingOnMap}
-            onPreviewChange={setPreviewDestination}
-            onSave={saveDestination}
-          />
-        </div>
+      meetingTimeControl={
+        <MeetingTimeSettings
+          meetingTime={meetingTime}
+          isSaving={isSavingMeetingTime}
+          errorMessage={meetingTimeSaveError}
+          onSave={saveMeetingTime}
+        />
+      }
+      mapControls={
+        <DestinationSettings
+          destination={destination}
+          destinationName={mapState?.destinationName ?? roomInfo?.meetingPlace ?? null}
+          destinationAddress={mapState?.destinationAddress ?? null}
+          isSaving={isSavingDestination}
+          saveError={destinationSaveError}
+          isPickingOnMap={isPickingOnMap}
+          mapPickedPoint={mapPickedPoint}
+          mapPickVersion={mapPickVersion}
+          onPickingChange={setIsPickingOnMap}
+          onPreviewChange={setPreviewDestination}
+          onSave={saveDestination}
+        />
       }
       map={
         <DestinationMap

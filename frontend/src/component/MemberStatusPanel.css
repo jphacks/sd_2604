@@ -2,6 +2,7 @@
   display: flex;
   min-width: 0;
   min-height: 0;
+  height: 100%;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid #e0e5dd;
@@ -11,40 +12,34 @@
 
 .member-status__header {
   display: flex;
-  min-height: 70px;
+  min-height: 48px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 17px;
+  padding: 8px 16px;
   border-bottom: 1px solid #e6e9e3;
-}
-
-.member-status__eyebrow {
-  margin: 0 0 3px;
-  color: #77837c;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
 }
 
 .member-status__header h2 {
   margin: 0;
   color: #22352f;
-  font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .member-status__count {
-  display: grid;
-  min-width: 36px;
-  height: 30px;
-  place-items: center;
-  border-radius: 15px;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid #d5e2dc;
+  border-radius: 999px;
   background: #edf2ee;
   color: #237765;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .member-status__list {
@@ -57,24 +52,37 @@
 
 .member-status__row {
   display: grid;
-  grid-template-columns: 34px minmax(70px, 1fr) minmax(64px, auto) minmax(58px, auto) minmax(92px, auto);
-  grid-template-areas: "avatar person distance eta verdict";
+  grid-template-columns: 10px 30px minmax(60px, 1fr) auto auto;
   align-items: center;
-  gap: 9px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 10px 16px;
   border-bottom: 1px solid #edf0eb;
 }
 
+.member-status__bool {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c5ccc8;
+}
+
+.member-status__bool.is-active {
+  background: #53a283;
+  box-shadow: 0 0 0 3px rgb(83 162 131 / 16%);
+}
+
+.member-status__bool.is-jammed {
+  background: #ad7932;
+  box-shadow: 0 0 0 3px rgb(173 121 50 / 16%);
+}
+
 .member-status__avatar {
-  grid-area: avatar;
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   place-items: center;
-  border: 2px solid white;
   border-radius: 50%;
   background: #237765;
-  box-shadow: 0 1px 5px rgb(33 52 43 / 20%);
   color: white;
   font-size: 12px;
   font-weight: 700;
@@ -84,64 +92,30 @@
   background: #ad7932;
 }
 
-.member-status__person,
-.member-status__distance,
-.member-status__eta {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.member-status__person {
-  grid-area: person;
-}
-
-.member-status__distance {
-  grid-area: distance;
-}
-
-.member-status__eta {
-  grid-area: eta;
-}
-
-.member-status__person strong,
-.member-status__distance strong,
-.member-status__eta strong {
+.member-status__name {
   overflow: hidden;
-  color: #283a33;
-  font-size: 11px;
-  font-weight: 700;
+  color: #22352f;
+  font-size: 14px;
+  font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.member-status__distance strong,
-.member-status__eta strong {
+.member-status__eta-time {
+  color: #22352f;
+  font-size: 15px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.member-status__person span,
-.member-status__distance span,
-.member-status__eta span {
-  color: #7b8780;
-  font-size: 9px;
-  white-space: nowrap;
-}
-
 .member-status__verdict {
-  grid-area: verdict;
-  min-width: 0;
-  display: grid;
-  justify-items: center;
-  gap: 3px;
-  padding: 6px 7px;
+  padding: 4px 8px;
   border-radius: 4px;
   background: #eef2ed;
   color: #637168;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 650;
-  line-height: 1.35;
-  text-align: center;
+  white-space: nowrap;
 }
 
 .member-status__verdict.is-on-time {
@@ -154,30 +128,11 @@
   color: #ad4938;
 }
 
-.member-status__verdict small {
-  font-size: 8px;
-  font-weight: 500;
-}
-
 .member-status__empty {
   margin: 0;
-  padding: 20px 17px;
+  padding: 18px 16px;
   color: #7b8780;
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-.member-status__footer {
-  display: flex;
-  min-height: 39px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: auto;
-  padding: 8px 14px;
-  border-top: 1px solid #e6e9e3;
-  color: #77837c;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 @media (max-width: 640px) {
@@ -188,38 +143,12 @@
   }
 
   .member-status__header {
-    min-height: 54px;
-    padding: 9px 14px;
-  }
-
-  .member-status__header h2 {
-    font-size: 16px;
+    min-height: 44px;
+    padding: 8px 14px;
   }
 
   .member-status__row {
-    grid-template-columns: 34px minmax(72px, 1fr) minmax(58px, auto);
-    grid-template-areas:
-      "avatar person distance"
-      "avatar eta verdict";
-    column-gap: 8px;
-    row-gap: 6px;
-    padding: 11px 12px;
-  }
-
-  .member-status__person strong,
-  .member-status__distance strong,
-  .member-status__eta strong {
-    font-size: 10px;
-  }
-
-  .member-status__footer {
-    padding-right: 12px;
-    padding-left: 12px;
-  }
-
-  .member-status__verdict {
-    justify-self: start;
-    padding: 5px 7px;
-    text-align: left;
+    gap: 8px;
+    padding: 10px 14px;
   }
 }
