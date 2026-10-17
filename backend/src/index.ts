@@ -15,6 +15,7 @@ interface MemberStatus {
   lng: number | null;
   speed: number | null;
   etaMinutes?: number | null;
+  paceIsEstimated?: boolean;
   bearingDegrees?: number | null;
   locationJammed?: boolean;
   isWithin500m: boolean;
@@ -53,6 +54,7 @@ app.post('/api/location/sync', async (c) => {
     targetLat: number;
     targetLng: number;
     etaMinutes?: number | null;
+    paceIsEstimated?: boolean;
     bearingDegrees?: number | null;
     locationJammed?: boolean;
   }>();
@@ -92,14 +94,15 @@ app.post('/api/location/sync', async (c) => {
     status: 'on_the_way',
   };
 
-  // 500m外は通常nullにし、端末でジャミングされた概算座標だけ保存する
+  // 端末が秘匿設定に応じて正確値または概算値を選択して送信する
   membersStore[body.userId] = {
     ...current,
     name: body.userName,
-    lat: isWithin500m || locationJammed ? body.userLat : null,
-    lng: isWithin500m || locationJammed ? body.userLng : null,
+    lat: body.userLat,
+    lng: body.userLng,
     speed,
     etaMinutes,
+    paceIsEstimated: body.paceIsEstimated === true,
     bearingDegrees,
     locationJammed,
     isWithin500m,
