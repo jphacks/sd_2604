@@ -1,5 +1,5 @@
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 
 const app = new Hono()
 
@@ -20,6 +20,7 @@ interface MemberStatus {
 }
 
 const membersStore: Record<string, MemberStatus> = {};
+let destination: { lat: number; lng: number } | null = null;
 
 // 2点間の距離(メートル)計算関数 (Haversineの公式)
 function getDistanceMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -51,6 +52,7 @@ app.post('/api/location/sync', async (c) => {
 
   const distance = getDistanceMetres(body.userLat, body.userLng, body.targetLat, body.targetLng);
   const isWithin500m = distance <= 500;
+  destination = { lat: body.targetLat, lng: body.targetLng };
 
   const current = membersStore[body.userId] || {
     id: body.userId,
@@ -112,6 +114,33 @@ app.post('/api/delay', async (c) => {
 // 3. 全メンバー情報取得API（一覧表示用）
 app.get('/api/members', (c) => {
   return c.json(Object.values(membersStore));
+});
+
+app.put('/api/destination', async (c) => {
+  const body = await c.req.json<{ lat: unknown; lng: unknown }>();
+
+  if (
+    typeof body.lat !== 'number' ||
+    typeof body.lng !== 'number' ||
+    !Number.isFinite(body.lat) ||
+    !Number.isFinite(body.lng) ||
+    body.lat < -90 ||
+    body.lat > 90 ||
+    body.lng < -180 ||
+    body.lng > 180
+  ) {
+    return c.json({ success: false, error: 'Invalid destination coordinates' }, 400);
+  }
+
+  destination = { lat: body.lat, lng: body.lng };
+  return c.json({ success: true, destination });
+});
+
+app.get('/api/map-state', (c) => {
+  return c.json({
+    destination,
+    members: Object.values(membersStore),
+  });
 });
 
 export default app
