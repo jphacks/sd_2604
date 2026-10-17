@@ -1,5 +1,28 @@
 import type { Destination, LocationSyncPayload, MapState } from './mapTypes'
 
+export interface CreateRoomRequest {
+  title: string
+  targetName: string
+  targetLat: number
+  targetLng: number
+  meetingTime: string
+}
+
+export interface CreateRoomResponse {
+  success: boolean
+  roomId?: string
+  room?: {
+    id: string
+    title: string
+    targetName: string
+    targetLat: number
+    targetLng: number
+    meetingTime: string
+    members: Record<string, unknown>
+  }
+  error?: string
+}
+
 export class MapApiClient {
   private readonly baseUrl: string
   private readonly request: typeof fetch
@@ -7,6 +30,20 @@ export class MapApiClient {
   constructor(baseUrl: string, request: typeof fetch = fetch) {
     this.baseUrl = baseUrl
     this.request = request.bind(globalThis)
+  }
+
+  async createRoom(payload: CreateRoomRequest): Promise<CreateRoomResponse> {
+    const response = await this.request(`${this.baseUrl}/api/rooms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Room creation failed: ${response.status}`)
+    }
+
+    return (await response.json()) as CreateRoomResponse
   }
 
   async getMapState(): Promise<MapState> {

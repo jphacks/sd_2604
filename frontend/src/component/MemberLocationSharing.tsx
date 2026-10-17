@@ -32,6 +32,25 @@ function getParticipantId(): string {
   }
 }
 
+function getStoredParticipantName(defaultName: string): string {
+  const storageKey = 'meetpoint.participant-name'
+
+  try {
+    const savedName = localStorage.getItem(storageKey)
+    if (savedName && savedName.trim()) return savedName.trim()
+  } catch {
+    // ignore access failures and fall back below
+  }
+
+  try {
+    localStorage.setItem(storageKey, defaultName)
+  } catch {
+    // ignore storage failures
+  }
+
+  return defaultName
+}
+
 function formatDistance(metres: number): string {
   return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`
 }
@@ -43,6 +62,7 @@ export default function MemberLocationSharing({
   userName = '自分',
 }: MemberLocationSharingProps) {
   const [participantId] = useState(userId ?? getParticipantId)
+  const [participantName, setParticipantName] = useState(() => getStoredParticipantName(userName || '自分'))
   const [isSharing, setIsSharing] = useState(false)
   const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
   const [locationStatus, setLocationStatus] = useState<OwnLocationStatus | null>(null)
@@ -50,6 +70,20 @@ export default function MemberLocationSharing({
   const jamOutsideRadiusRef = useRef(jamOutsideRadius)
   const destinationLat = destination?.lat
   const destinationLng = destination?.lng
+
+  useEffect(() => {
+    const nextName = (userName || '自分').trim()
+    if (nextName) {
+      setParticipantName(nextName)
+      try {
+        localStorage.setItem('meetpoint.participant-name', nextName)
+      } catch {
+        // ignore storage failures
+      }
+    }
+  }, [userName])
+
+  const displayName = participantName.trim() || '自分'
 
   useEffect(() => {
     jamOutsideRadiusRef.current = jamOutsideRadius
@@ -81,7 +115,7 @@ export default function MemberLocationSharing({
         }
         const update = locationService.createUpdate(
           participantId,
-          userName,
+          displayName,
           sample,
           target,
           jamOutsideRadiusRef.current,
@@ -139,7 +173,17 @@ export default function MemberLocationSharing({
       disposed = true
       if (watchId !== null) navigator.geolocation.clearWatch(watchId)
     }
-  }, [apiClient, destinationLat, destinationLng, isSharing, participantId, userName])
+  }, [apiClient, destinationLat, destinationLng, displayName, isSharing, participantId])
+
+  const handleNameChange = (nextName: string) => {
+    const trimmed = nextName.trimStart().slice(0, 24)
+    setParticipantName(trimmed)
+    try {
+      localStorage.setItem('meetpoint.participant-name', trimmed || '自分')
+    } catch {
+      // ignore storage failures
+    }
+  }
 
   const toggleSharing = () => {
     if (!destination) {
@@ -168,6 +212,17 @@ export default function MemberLocationSharing({
             <strong>{isSharing ? '位置情報を共有中' : '位置情報は共有していません'}</strong>
           </div>
         </div>
+
+        <label className="location-sharing__name-field">
+          <span>名前</span>
+          <input
+            type="text"
+            value={participantName}
+            onChange={(event) => handleNameChange(event.target.value)}
+            maxLength={24}
+            placeholder="自分"
+          />
+        </label>
 
         {isSharing && locationStatus && (
           <div className="location-sharing__estimate">

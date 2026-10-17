@@ -51,6 +51,26 @@
   font-weight: 650;
 }
 
+.location-sharing__name-field {
+  display: grid;
+  min-width: 120px;
+  gap: 5px;
+  color: #52665d;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.location-sharing__name-field input {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #dfe5dd;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #22352f;
+  font-size: 12px;
+}
+
 .location-sharing__estimate {
   display: flex;
   min-width: 0;
