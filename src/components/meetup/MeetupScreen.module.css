@@ -1,0 +1,13 @@
+.screen {
+  max-width: 820px;
+  margin: 0 auto;
+  min-height: 100%;
+  border: 1px solid var(--line, #2c344a);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* モックの区切り線: 各ブロックの間に線を入れる */
+.section + .section {
+  border-top: 1px solid var(--line, #2c344a);
+}

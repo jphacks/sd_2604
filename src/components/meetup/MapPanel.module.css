@@ -1,0 +1,29 @@
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--muted, #9aa4bd);
+  text-align: center;
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 160px;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 160px;
+  color: var(--muted, #9aa4bd);
+  background: #0c0f16;
+}
