@@ -1,6 +1,5 @@
 import type { Destination } from './mapTypes'
 
-
 export function getStraightLineDistanceMetres(from: Destination, to: Destination): number {
   const earthRadiusMetres = 6_371_000
   const toRadians = (degrees: number) => (degrees * Math.PI) / 180

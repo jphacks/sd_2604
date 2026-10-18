@@ -6,7 +6,8 @@ interface MemberStatusPanelProps {
   members?: MemberStatus[]
   destination?: Destination | null
   meetingTime?: string
-  onAddDelay?: (minutes: number) => void
+  onAddDelay?: (minutes: number, memberId: string) => void | Promise<void>
+  errorMessage?: string | null
   onReachDestinationOnTime?: (memberId: string) => void
   onReachDestinationLate?: (memberId: string) => void
   timerText?: string | null
@@ -24,7 +25,7 @@ function getArrivalStatus(member: MemberStatus, currentDelay: number, meetingTim
 function formatEtaTime(etaMinutes: number | null | undefined, delayMinutes: number, now: Date, isWithin50m: boolean): string {
   if (isWithin50m) return '到着済み / 50m圏内'
   if (etaMinutes === null || etaMinutes === undefined) return '計測中'
-  
+
   const totalMins = Math.max(0, (etaMinutes || 0) + delayMinutes)
   if (totalMins === 0) return '到着済み / 圏内'
 
@@ -41,14 +42,34 @@ function formatMeetingTime(meetingTime?: string): string | null {
     : null
 }
 
-function getMinutesUntilMeeting(meetingTime?: string, nowMs: number = Date.now()): string {
-  if (!meetingTime) return '集合時刻未設定'
-  const targetMs = new Date(meetingTime).getTime()
-  if (!Number.isFinite(targetMs)) return '集合時刻未設定'
-  const diffMins = Math.round((targetMs - nowMs) / 60_000)
-  if (diffMins > 0) return `集合まであと${diffMins}分`
-  if (diffMins === 0) return 'まもなく集合時間です'
-  return `集合時間を${Math.abs(diffMins)}分超過`
+// 個人ごとの集合時間に対する差分テキストを計算
+function getMemberMeetingStatusText(
+  member: MemberStatus,
+  currentDelay: number,
+  meetingTime?: string,
+  nowMs: number = Date.now()
+): string {
+  if (!meetingTime) return '集合時間未設定'
+  const meetingAt = new Date(meetingTime).getTime()
+  if (!Number.isFinite(meetingAt)) return '集合時間未設定'
+
+  if (member.etaMinutes === null || member.etaMinutes === undefined) {
+    const diffMins = Math.round((meetingAt - nowMs) / 60_000)
+    if (diffMins > 0) return `集合まであと${diffMins}分`
+    if (diffMins === 0) return 'まもなく集合時間です'
+    return `集合時間を${Math.abs(diffMins)}分超過`
+  }
+
+  const estimatedArrival = nowMs + Math.max(0, member.etaMinutes + currentDelay) * 60_000
+  const diffMins = Math.round((estimatedArrival - meetingAt) / 60_000)
+
+  if (diffMins > 0) {
+    return `集合時間を${diffMins}分超過`
+  } else if (diffMins === 0) {
+    return 'ぴったり集合時間に到着予定'
+  } else {
+    return `集合の${Math.abs(diffMins)}分前に到着予定`
+  }
 }
 
 export default function MemberStatusPanel({
@@ -56,17 +77,15 @@ export default function MemberStatusPanel({
   destination,
   meetingTime,
   onAddDelay,
+  errorMessage,
   onReachDestinationOnTime,
   onReachDestinationLate,
   timerText
 }: MemberStatusPanelProps) {
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null)
   const [now, setNow] = useState<Date>(new Date())
-  const [myCoords, setMyCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [extraDelays, setExtraDelays] = useState<Record<string, number>>({})
 
-  // 画面幅をReactでリアルタイム検知 (390px以下かどうか)
-  const [isSmallMobile, setIsSmallMobile] = useState<boolean>(() => 
+  const [isSmallMobile, setIsSmallMobile] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth <= 390 : false
   )
 
@@ -76,44 +95,28 @@ export default function MemberStatusPanel({
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 1秒ごとの時刻更新
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
-
-  // GPS常時自動取得
-  useEffect(() => {
-    if (!destination || !navigator.geolocation) return
-
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => setMyCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-    )
-
-    return () => navigator.geolocation.clearWatch(watchId)
-  }, [destination])
 
   const formattedMeetingTime = formatMeetingTime(meetingTime)
   const formattedCurrentTime = new Intl.DateTimeFormat('ja-JP', {
     hour: '2-digit', minute: '2-digit', second: '2-digit'
   }).format(now)
 
-  const meetingCountdownText = getMinutesUntilMeeting(meetingTime, now.getTime())
   const onTimeCount = members.filter((m) => {
-    const delay = (m.delayMinutes || 0) + (extraDelays[m.id] || 0)
+    const delay = m.delayMinutes || 0
     return getArrivalStatus(m, delay, meetingTime, now.getTime()) === 'on-time'
   }).length
 
   const handleAddDelayClick = (memberId: string, mins: number) => {
-    setExtraDelays((prev) => ({ ...prev, [memberId]: (prev[memberId] || 0) + mins }))
-    onAddDelay?.(mins)
+    void onAddDelay?.(mins, memberId)
     setExpandedMemberId(null)
   }
 
-  const handleResetDelay = (memberId: string) => {
-    setExtraDelays((prev) => ({ ...prev, [memberId]: 0 }))
+  const handleResetDelay = (member: MemberStatus) => {
+    if (member.delayMinutes !== 0) void onAddDelay?.(-member.delayMinutes, member.id)
     setExpandedMemberId(null)
   }
 
@@ -136,26 +139,27 @@ export default function MemberStatusPanel({
         </span>
       </header>
 
-      {/* 集合カウントダウン */}
-      <div style={{ textAlign: 'center', padding: '8px 10px', background: '#eef3f8', color: '#1e293b', fontWeight: 'bold', fontSize: isSmallMobile ? '12px' : '13px', borderRadius: '8px', marginBottom: '8px' }}>
-        集合: {meetingCountdownText} {formattedMeetingTime ? `(${formattedMeetingTime})` : ''}
-      </div>
-
       {timerText && (
         <div style={{ textAlign: 'center', padding: '6px 10px', background: '#fff5f5', color: '#e74c3c', fontWeight: 'bold', fontSize: '12px', borderRadius: '8px', marginBottom: '8px' }}>
           遅延タイマー: {timerText}
         </div>
       )}
 
+      {errorMessage && (
+        <p role="alert" style={{ margin: '0 0 8px', color: '#b91c1c', fontSize: '12px' }}>
+          {errorMessage}
+        </p>
+      )}
+
       {members.length > 0 ? (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {members.map((member) => {
-            const currentTotalDelay = (member.delayMinutes || 0) + (extraDelays[member.id] || 0)
+            const currentTotalDelay = member.delayMinutes || 0
             const arrivalStatus = getArrivalStatus(member, currentTotalDelay, meetingTime, now.getTime())
             const isExpanded = expandedMemberId === member.id
 
-            const mLat = member.lat ?? myCoords?.lat
-            const mLng = member.lng ?? myCoords?.lng
+            const mLat = member.lat
+            const mLng = member.lng
             const meters = (mLat != null && mLng != null && destination?.lat != null && destination?.lng != null)
               ? getStraightLineDistanceMetres({ lat: mLat, lng: mLng }, destination)
               : null
@@ -174,8 +178,8 @@ export default function MemberStatusPanel({
             }
 
             const isLate = !isWithin50m && arrivalStatus === 'late'
+            const memberMeetingText = getMemberMeetingStatusText(member, currentTotalDelay, meetingTime, now.getTime())
 
-            // ステータスタグのスタイル定義
             let statusLabelText = formattedMeetingTime ? '計測中' : '集合未設定'
             let statusStyle: React.CSSProperties = {
               borderRadius: '6px',
@@ -219,9 +223,26 @@ export default function MemberStatusPanel({
                   marginBottom: '10px',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
                 }}>
+                  {/* ★ 一人一人のDIVの最上部に「集合カウントダウン/超過バナー」を配置 */}
+                  {formattedMeetingTime && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '6px 8px',
+                      background: isWithin50m ? '#d1fae5' : isLate ? '#fee2e2' : '#e0f2fe',
+                      color: isWithin50m ? '#065f46' : isLate ? '#991b1b' : '#0369a1',
+                      fontWeight: 'bold',
+                      fontSize: isSmallMobile ? '11.5px' : '12.5px',
+                      borderRadius: '6px',
+                      marginBottom: '8px',
+                      border: isWithin50m ? '1px solid #a7f3d0' : isLate ? '1px solid #fca5a5' : '1px solid #bae6fd'
+                    }}>
+                      🕒 集合: {memberMeetingText} {formattedMeetingTime ? `(${formattedMeetingTime})` : ''}
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    
-                    {/* 1行目 */}
+
+                    {/* 1行目: アバター / 名前 / 中央バナー / 右側アクション */}
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -229,7 +250,7 @@ export default function MemberStatusPanel({
                       gap: '6px',
                       width: '100%'
                     }}>
-                      
+
                       {/* 左側: アバター ＋ 名前 */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexShrink: 1 }}>
                         <span style={{
@@ -238,7 +259,7 @@ export default function MemberStatusPanel({
                         }}>
                           {member.name.slice(0, 1)}
                         </span>
-                        
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
                           <strong style={{ fontSize: isSmallMobile ? '14px' : '15px', fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {member.name}
@@ -257,7 +278,7 @@ export default function MemberStatusPanel({
                         </div>
                       </div>
 
-                      {/* 中央バナーメッセージ (バルーン等絵文字なし) */}
+                      {/* 中央バナーメッセージ */}
                       <div style={{ flex: 1, textAlign: 'center', minWidth: '55px' }}>
                         {isOnTimeArrival ? (
                           <span style={{ color: '#047857', fontWeight: 800, fontSize: '12px', background: '#d1fae5', padding: '2px 6px', borderRadius: '4px', border: '1px solid #6ee7b7', display: 'inline-block' }}>
@@ -278,14 +299,14 @@ export default function MemberStatusPanel({
                         )}
                       </div>
 
-                      {/* 右側アクション (▴ ▾ を使用) */}
+                      {/* 右側アクション (▴ ▾ 使用) */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                         <button
                           type="button"
                           onClick={() => setExpandedMemberId((prev) => (prev === member.id ? null : member.id))}
                           style={{
                             padding: isSmallMobile ? '4px 6px' : '6px 10px',
-                            fontSize: isSmallMobile ? '10.5px' : '11px',
+                            fontSize: isSmallMobile ? '12px' : '11px',
                             lineHeight: 1,
                             background: isExpanded ? '#1e293b' : '#f1f5f9',
                             color: isExpanded ? '#fff' : '#334155',
@@ -386,7 +407,7 @@ export default function MemberStatusPanel({
                         {currentTotalDelay !== 0 && (
                           <button
                             type="button"
-                            onClick={() => handleResetDelay(member.id)}
+                            onClick={() => handleResetDelay(member)}
                             style={{
                               padding: '8px 10px',
                               background: '#3b82f6',

@@ -1,4 +1,4 @@
-import type { Destination, DestinationInput, LocationSyncPayload, MapState } from './mapTypes'
+import type { Destination, DestinationInput, LocationSyncPayload, MapState, MemberStatus } from './mapTypes'
 
 export interface CreateRoomRequest {
   title: string
@@ -8,6 +8,13 @@ export interface CreateRoomRequest {
   meetingTime: string
   destinationName?: string | null
   destinationAddress?: string | null
+  ownerId?: string
+  ownerName?: string
+}
+
+export interface JoinRoomRequest {
+  userId: string
+  userName: string
 }
 
 export interface CreateRoomResponse {
@@ -48,21 +55,42 @@ export class MapApiClient {
     return (await response.json()) as CreateRoomResponse
   }
 
+  async joinRoom(roomId: string, payload: JoinRoomRequest): Promise<{ success: boolean; userId?: string; userName?: string; room?: { id: string; ownerId?: string | null } }> {
+    const response = await this.request(`${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Join room failed: ${response.status}`)
+    }
+
+    return (await response.json()) as { success: boolean; userId?: string; userName?: string; room?: { id: string; ownerId?: string | null } }
+  }
+
   async getMapState(roomId?: string | null): Promise<MapState> {
     const endpoint = roomId ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/map-state` : `${this.baseUrl}/api/map-state`
     const response = await this.request(endpoint)
     if (!response.ok) throw new Error(`Map state request failed: ${response.status}`)
 
-    const value = (await response.json()) as Partial<MapState>
+    const value = (await response.json()) as Partial<MapState> & { targetName?: string | null; destinationName?: string | null }
     if (!Array.isArray(value.members)) throw new Error('Invalid map state response')
 
     return {
       destination: this.validateDestination(value.destination),
-      destinationName: typeof value.destinationName === 'string' ? value.destinationName : null,
-      destinationAddress: typeof value.destinationAddress === 'string' ? value.destinationAddress : null,
+      destinationName: typeof value.destinationName === 'string' && value.destinationName.trim()
+        ? value.destinationName.trim()
+        : typeof value.targetName === 'string' && value.targetName.trim()
+          ? value.targetName.trim()
+          : null,
+      destinationAddress: typeof value.destinationAddress === 'string' && value.destinationAddress.trim()
+        ? value.destinationAddress.trim()
+        : null,
       meetingTime: typeof value.meetingTime === 'string' && Number.isFinite(Date.parse(value.meetingTime))
         ? value.meetingTime
         : null,
+      ownerId: typeof value.ownerId === 'string' && value.ownerId.trim() ? value.ownerId.trim() : null,
       members: value.members,
     }
   }
@@ -108,7 +136,7 @@ export class MapApiClient {
     return value.meetingTime
   }
 
-  async syncLocation(roomId: string | null | undefined, payload: LocationSyncPayload): Promise<void> {
+  async syncLocation(roomId: string | null | undefined, payload: LocationSyncPayload): Promise<MemberStatus[]> {
     const endpoint = roomId
       ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/sync`
       : `${this.baseUrl}/api/location/sync`
@@ -118,6 +146,23 @@ export class MapApiClient {
       body: JSON.stringify(payload),
     })
     if (!response.ok) throw new Error(`Location sync failed: ${response.status}`)
+
+    const value = (await response.json()) as { members?: unknown }
+    if (!Array.isArray(value.members)) throw new Error('Invalid location sync response')
+    return value.members as MemberStatus[]
+  }
+
+  async addDelay(roomId: string, userId: string, addMinutes: number): Promise<MemberStatus[]> {
+    const response = await this.request(`${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/delay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, addMinutes }),
+    })
+    if (!response.ok) throw new Error(`Delay update failed: ${response.status}`)
+
+    const value = (await response.json()) as { members?: unknown }
+    if (!Array.isArray(value.members)) throw new Error('Invalid delay response')
+    return value.members as MemberStatus[]
   }
 
   private validateDestination(value: unknown): Destination | null {
