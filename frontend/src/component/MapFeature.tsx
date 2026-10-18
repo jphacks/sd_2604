@@ -220,8 +220,9 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           members={mapState?.members ?? []}
           destination={destination}
           meetingTime={meetingTime ?? undefined}
-          onAddDelay={handleAddDelay}
+          onAddDelay={isOwner ? handleAddDelay : undefined}
           errorMessage={meetingTimeSaveError}
+          canAdjustDelay={isOwner}
         />
       }
     >

@@ -10,6 +10,10 @@ type GeocodeResult = {
   displayName: string
 }
 
+type GeocodeCandidate = GeocodeResult & {
+  label: string
+}
+
 function getRoomIdFromUrl(): string | null {
   if (typeof window === 'undefined') return null
   return new URLSearchParams(window.location.search).get('room')
@@ -106,6 +110,122 @@ function normalizePlaceText(value: string): string {
     .trim()
 }
 
+function stripPlaceSuffixes(value: string): string {
+  return normalizePlaceText(value)
+    .replace(/(?:駅|停留所|バス停|乗降場)$/g, '')
+    .replace(/(?:市|区|町|村|郡)$/g, '')
+}
+
+function isPlaceMatch(query: string, candidateText: string): boolean {
+  const normalizedQuery = normalizePlaceText(query)
+  const normalizedCandidate = normalizePlaceText(candidateText)
+
+  if (!normalizedQuery || !normalizedCandidate) return false
+
+  const queryVariants = new Set([
+    normalizedQuery,
+    stripPlaceSuffixes(normalizedQuery),
+  ])
+  const candidateVariants = new Set([
+    normalizedCandidate,
+    stripPlaceSuffixes(normalizedCandidate),
+  ])
+
+  return Array.from(queryVariants).some((queryVariant) =>
+    Array.from(candidateVariants).some(
+      (candidateVariant) =>
+        candidateVariant === queryVariant ||
+        candidateVariant.startsWith(queryVariant) ||
+        queryVariant.startsWith(candidateVariant) ||
+        candidateVariant.includes(queryVariant) ||
+        queryVariant.includes(candidateVariant),
+    ),
+  )
+}
+
+function scoreGeocodeCandidate(query: string, candidateText: string, type?: string): number {
+  const normalizedQuery = normalizePlaceText(query)
+  const normalizedCandidate = normalizePlaceText(candidateText)
+  if (!normalizedQuery || !normalizedCandidate) return 0
+
+  let score = 0
+  if (normalizedCandidate === normalizedQuery) score += 120
+  if (normalizedCandidate.startsWith(normalizedQuery)) score += 80
+  if (normalizedQuery.startsWith(normalizedCandidate)) score += 40
+  if (normalizedCandidate.includes(normalizedQuery)) score += 25
+  if (normalizedQuery.includes(normalizedCandidate)) score += 15
+  if (isPlaceMatch(query, candidateText)) score += 60
+
+  if (type === 'station' || type === 'railway') score += 60
+  if (type === 'city' || type === 'administrative') score += 25
+  if (type === 'amenity' || type === 'restaurant') score += 5
+
+  return score
+}
+
+async function geocodePlaceCandidates(placeName: string): Promise<GeocodeCandidate[]> {
+  const cleaned = placeName.trim()
+  if (!cleaned) return []
+
+  const searchQueries = Array.from(
+    new Set([
+      cleaned,
+      cleaned.replace(/(?:駅|停留所|バス停|乗降場)$/g, ''),
+      cleaned.replace(/(?:駅|停留所|バス停|乗降場)$/g, '駅'),
+    ].filter(Boolean)),
+  )
+
+  for (const query of searchQueries) {
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('q', query)
+    url.searchParams.set('format', 'jsonv2')
+    url.searchParams.set('limit', '10')
+    url.searchParams.set('countrycodes', 'jp')
+    url.searchParams.set('accept-language', 'ja')
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept-Language': 'ja',
+        'User-Agent': 'MeetPointApp/1.0',
+      },
+    })
+
+    if (!response.ok) continue
+
+    const candidates = (await response.json()) as Array<{
+      lat?: string
+      lon?: string
+      display_name?: string
+      type?: string
+      address?: { country_code?: string }
+    }>
+
+    if (!Array.isArray(candidates) || candidates.length === 0) continue
+
+    const matches = candidates
+      .filter((candidate) => {
+        if (!candidate.lat || !candidate.lon) return false
+        if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
+        return !!candidate.display_name
+      })
+      .map((candidate) => ({
+        lat: Number(candidate.lat),
+        lng: Number(candidate.lon),
+        displayName: candidate.display_name ?? cleaned,
+        label: candidate.display_name ?? cleaned,
+        score: scoreGeocodeCandidate(cleaned, candidate.display_name ?? cleaned, candidate.type),
+      }))
+      .filter((candidate) => Number.isFinite(candidate.lat) && Number.isFinite(candidate.lng))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map(({ lat, lng, displayName, label }) => ({ lat, lng, displayName, label }))
+
+    if (matches.length > 0) return matches
+  }
+
+  return []
+}
+
 function createInitialMeetingTime(): string {
   const date = new Date()
   date.setHours(date.getHours() + 1)
@@ -114,56 +234,13 @@ function createInitialMeetingTime(): string {
 }
 
 async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null> {
-  const cleaned = placeName.trim()
-  if (!cleaned) return null
-
-  const normalizedQuery = normalizePlaceText(cleaned)
-
-  const url = new URL('https://nominatim.openstreetmap.org/search')
-  url.searchParams.set('q', cleaned)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '10')
-  url.searchParams.set('countrycodes', 'jp')
-  url.searchParams.set('accept-language', 'ja')
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept-Language': 'ja',
-      'User-Agent': 'MeetPointApp/1.0',
-    },
-  })
-
-  if (!response.ok) return null
-
-  const candidates = (await response.json()) as Array<{
-    lat?: string
-    lon?: string
-    name?: string
-    display_name?: string
-    address?: { country_code?: string }
-  }>
-
-  if (!Array.isArray(candidates) || candidates.length === 0) return null
-
-  const preferred = candidates.find((candidate) => {
-    if (!candidate.lat || !candidate.lon) return false
-    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
-
-    const directName = normalizePlaceText(candidate.name ?? '')
-    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
-
-    return (
-      (directName && (directName === normalizedQuery || directName.startsWith(normalizedQuery))) ||
-      (directDisplayName && (directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)))
-    )
-  })
-
-  if (!preferred || !preferred.lat || !preferred.lon) return null
+  const [result] = await geocodePlaceCandidates(placeName)
+  if (!result) return null
 
   return {
-    lat: Number(preferred.lat),
-    lng: Number(preferred.lon),
-    displayName: preferred.display_name ?? cleaned,
+    lat: result.lat,
+    lng: result.lng,
+    displayName: result.displayName,
   }
 }
 
@@ -198,6 +275,7 @@ export default function App({ roomInfo, participant }: AppProps) {
   })
   const [placeName, setPlaceName] = useState('')
   const [addressText, setAddressText] = useState('')
+  const [placeCandidates, setPlaceCandidates] = useState<GeocodeCandidate[]>([])
   const [meetingTime, setMeetingTime] = useState(createInitialMeetingTime)
   const [isSearching, setIsSearching] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -223,13 +301,20 @@ export default function App({ roomInfo, participant }: AppProps) {
 
     setIsSearching(true)
     try {
-      const result = await geocodePlaceName(placeName)
-      if (!result) {
-        setErrorMessage('目的地を見つけられませんでした。別の表記でお試しください。')
+      const results = await geocodePlaceCandidates(placeName)
+      if (results.length === 0) {
+        setPlaceCandidates([])
         setAddressText('')
+        setErrorMessage('目的地を見つけられませんでした。別の表記でお試しください。')
         return
       }
-      setAddressText(result.displayName)
+
+      setPlaceCandidates(results)
+      if (results.length === 1) {
+        const [result] = results
+        setPlaceName(result.label.split(',')[0]?.trim() || placeName)
+        setAddressText(result.displayName)
+      }
     } finally {
       setIsSearching(false)
     }
@@ -478,7 +563,10 @@ export default function App({ roomInfo, participant }: AppProps) {
             <span style={{ fontSize: 18 }}>場所名</span>
             <input
               value={placeName}
-              onChange={(event) => setPlaceName(event.target.value)}
+              onChange={(event) => {
+                setPlaceName(event.target.value)
+                setPlaceCandidates([])
+              }}
               placeholder="会津若松駅"
               style={{
                 padding: '14px 12px',
@@ -491,6 +579,43 @@ export default function App({ roomInfo, participant }: AppProps) {
               }}
             />
           </label>
+
+          {placeCandidates.length > 0 && (
+            <div
+              style={{
+                display: 'grid',
+                gap: 8,
+                maxHeight: 220,
+                overflowY: 'auto',
+                paddingRight: 4,
+              }}
+            >
+              {placeCandidates.map((candidate) => (
+                <button
+                  key={`${candidate.lat}:${candidate.lng}:${candidate.displayName}`}
+                  type="button"
+                  onClick={() => {
+                    setPlaceName(candidate.label.split(',')[0]?.trim() || placeName)
+                    setAddressText(candidate.displayName)
+                    setPlaceCandidates([])
+                  }}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: '10px 12px',
+                    background: 'rgba(255,255,255,0.5)',
+                    border: '1px solid #dfe7df',
+                    borderRadius: 12,
+                    color: '#22352f',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>{candidate.label.split(',')[0]?.trim() || '候補'}</div>
+                  <div style={{ color: '#47615d', fontSize: 12, lineHeight: 1.5, marginTop: 2 }}>{candidate.displayName}</div>
+                </button>
+              ))}
+            </div>
+          )}
 
           <button
             type="button"

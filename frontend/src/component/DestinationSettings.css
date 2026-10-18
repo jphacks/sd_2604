@@ -25,14 +25,14 @@
 .destination-settings__save,
 .destination-settings__pick,
 .destination-settings__geocode-btn {
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid #d9e0d9;
-  border-radius: 5px;
+  border-radius: 12px;
   background: #fffefa;
   color: #263b33;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .destination-settings__panel {
@@ -41,15 +41,15 @@
   top: calc(100% + 8px);
   right: 0;
   display: grid;
-  width: min(340px, calc(100vw - 24px));
+  width: min(360px, calc(100vw - 24px));
   max-height: calc(100vh - 150px);
-  gap: 12px;
+  gap: 16px;
   overflow: auto;
-  padding: 16px;
-  border: 1px solid #e2e6df;
-  border-radius: 8px;
-  background: #fffefa;
-  box-shadow: 0 12px 34px rgb(33 52 43 / 20%);
+  padding: 18px 16px 16px;
+  border: 1px solid rgba(127, 138, 128, 0.25);
+  border-radius: 20px;
+  background: rgba(237, 240, 232, 0.94);
+  box-shadow: 0 8px 30px rgb(24 43 37 / 8%);
 }
 
 .destination-settings__heading {
@@ -63,26 +63,27 @@
   margin: 0 0 2px;
   color: #738079;
   font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 
 .destination-settings__heading h2 {
   margin: 0;
   color: #22352f;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .destination-settings__close {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid #e2e6df;
+  border: 1px solid #dfe7df;
   border-radius: 50%;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.4);
   color: #52665d;
   cursor: pointer;
   font-size: 18px;
@@ -91,39 +92,93 @@
 
 .destination-settings__field {
   display: grid;
-  gap: 5px;
-  color: #52665d;
-  font-size: 11px;
-  font-weight: 600;
+  gap: 8px;
+  color: #22352f;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .destination-settings__search-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+}
+
+.destination-settings__candidate-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.destination-settings__candidate-header {
+  color: #52665d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.destination-settings__candidate-list {
+  display: grid;
+  gap: 8px;
+  max-height: 190px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.destination-settings__candidate-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #dfe7df;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  color: #22352f;
+  text-align: left;
+  cursor: pointer;
+}
+
+.destination-settings__candidate-item:hover {
+  border-color: #237765;
+  background: #edf7f4;
+}
+
+.destination-settings__candidate-name {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.destination-settings__candidate-address {
+  color: #4f615d;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .destination-settings__field input,
 .destination-settings__coordinates input {
   width: 100%;
   min-width: 0;
-  height: 38px;
-  padding: 0 10px;
-  border: 1px solid #d9e0d9;
-  border-radius: 4px;
-  background: white;
+  height: 52px;
+  padding: 0 12px;
+  border: 1px solid #c8cfc7;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
   color: #22352f;
-  font-size: 13px;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .destination-settings__geocode-btn {
   flex: 0 0 auto;
-  padding: 0 12px;
+  padding: 0 14px;
+  min-width: 82px;
 }
 
 .destination-settings__pick {
   width: 100%;
   padding: 0 12px;
   text-align: center;
+  border: 1px solid #dbe1d7;
+  background: #dfe7e1;
 }
 
 .destination-settings__pick.is-active {
@@ -135,15 +190,15 @@
 .destination-settings__coordinates {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 .destination-settings__coordinates label {
   display: grid;
-  gap: 4px;
-  color: #52665d;
-  font-size: 11px;
-  font-weight: 600;
+  gap: 6px;
+  color: #22352f;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .destination-settings__error {
@@ -154,9 +209,12 @@
 
 .destination-settings__save {
   width: 100%;
+  min-height: 52px;
   border-color: #237765;
   background: #237765;
   color: white;
+  font-size: 1.05rem;
+  font-weight: 800;
 }
 
 .destination-settings__save:disabled {

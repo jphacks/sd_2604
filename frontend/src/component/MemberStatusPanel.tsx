@@ -11,6 +11,7 @@ interface MemberStatusPanelProps {
   onReachDestinationOnTime?: (memberId: string) => void
   onReachDestinationLate?: (memberId: string) => void
   timerText?: string | null
+  canAdjustDelay?: boolean
 }
 
 function getArrivalStatus(member: MemberStatus, currentDelay: number, meetingTime?: string, nowMs: number = Date.now()): 'on-time' | 'late' | 'unknown' {
@@ -75,6 +76,7 @@ export default function MemberStatusPanel({
   onReachDestinationOnTime,
   onReachDestinationLate,
   timerText,
+  canAdjustDelay = false,
 }: MemberStatusPanelProps) {
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null)
   const [now, setNow] = useState<Date>(new Date())
@@ -106,11 +108,13 @@ export default function MemberStatusPanel({
   }).length
 
   const handleAddDelayClick = (memberId: string, mins: number) => {
+    if (!canAdjustDelay) return
     void onAddDelay?.(mins, memberId)
     setExpandedMemberId(null)
   }
 
   const handleResetDelay = (member: MemberStatus) => {
+    if (!canAdjustDelay) return
     if (member.delayMinutes !== 0) void onAddDelay?.(-member.delayMinutes, member.id)
     setExpandedMemberId(null)
   }
@@ -301,24 +305,26 @@ export default function MemberStatusPanel({
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedMemberId((prev) => (prev === member.id ? null : member.id))}
-                          style={{
-                            padding: isSmallMobile ? '4px 6px' : '6px 10px',
-                            fontSize: isSmallMobile ? '12px' : '11px',
-                            lineHeight: 1,
-                            background: isExpanded ? '#1e293b' : '#f1f5f9',
-                            color: isExpanded ? '#fff' : '#334155',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '6px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          調整{isExpanded ? '▴' : '▾'}
-                        </button>
+                        {canAdjustDelay && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedMemberId((prev) => (prev === member.id ? null : member.id))}
+                            style={{
+                              padding: isSmallMobile ? '4px 6px' : '6px 10px',
+                              fontSize: isSmallMobile ? '12px' : '11px',
+                              lineHeight: 1,
+                              background: isExpanded ? '#1e293b' : '#f1f5f9',
+                              color: isExpanded ? '#fff' : '#334155',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            調整{isExpanded ? '▴' : '▾'}
+                          </button>
+                        )}
 
                         <div style={statusStyle}>
                           <span>{statusLabelText}</span>
@@ -360,7 +366,7 @@ export default function MemberStatusPanel({
                     </div>
                   </div>
 
-                  {isExpanded && (
+                  {canAdjustDelay && isExpanded && (
                     <div style={{
                       marginTop: '8px',
                       padding: '8px',
