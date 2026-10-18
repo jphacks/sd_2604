@@ -1,13 +1,10 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { formatDistance, getStraightLineDistanceMetres } from './mapMath'
 import type { Destination, MemberStatus } from './mapTypes'
+import { getDisplayNameWithId } from './memberDisplayUtils'
 
-function getDisplayNameWithId(member: MemberStatus): { primary: string; suffix?: string } {
-  const baseName = member.name.trim() || '参加者'
-  const idSuffix = member.id ? member.id.slice(0, 6) : ''
-  if (!idSuffix) return { primary: baseName }
-  return { primary: baseName, suffix: `#${idSuffix}` }
-}
+const getMemberDisplayName = (member: MemberStatus, members: MemberStatus[]): { primary: string; suffix?: string } =>
+  getDisplayNameWithId(member, members)
 
 interface MemberStatusPanelProps {
   members?: MemberStatus[]
@@ -166,7 +163,7 @@ export default function MemberStatusPanel({
             const arrivalStatus = getArrivalStatus(member, currentTotalDelay, meetingTime, now.getTime())
             const isExpanded = expandedMemberId === member.id
             const canAdjustThisMember = canAdjustDelay && currentUserId !== null && currentUserId !== undefined && member.id === currentUserId
-            const displayName = getDisplayNameWithId(member)
+            const displayName = getMemberDisplayName(member, members)
 
             const mLat = member.lat
             const mLng = member.lng
