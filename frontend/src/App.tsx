@@ -46,6 +46,15 @@ function getRoomOwnerStorageKey(roomId: string): string {
   return `meetpoint.room-owner.${roomId}`
 }
 
+function getNextAnonymousName(): string {
+  if (typeof window === 'undefined') return '名無し1'
+
+  const currentIndex = Number(window.localStorage.getItem('meetpoint.anonymous-name-index') ?? '0')
+  const nextIndex = Number.isFinite(currentIndex) ? currentIndex + 1 : 1
+  window.localStorage.setItem('meetpoint.anonymous-name-index', String(nextIndex))
+  return `名無し${nextIndex}`
+}
+
 function readRoomParticipant(roomId: string | null | undefined): { id: string; name: string } | null {
   if (!roomId || typeof window === 'undefined') return null
 
@@ -184,8 +193,14 @@ export default function App({ roomInfo, participant }: AppProps) {
     return window.localStorage.getItem('meetpoint-creator-name') ?? ''
   })
   const [joinName, setJoinName] = useState(() => {
-    if (typeof window === 'undefined') return ''
-    return readRoomParticipant(roomId)?.name ?? window.localStorage.getItem('meetpoint.participant-name') ?? ''
+    if (typeof window === 'undefined') return '名無し1'
+
+    const storedParticipantName = readRoomParticipant(roomId)?.name ?? window.localStorage.getItem('meetpoint.participant-name')
+    if (storedParticipantName && storedParticipantName.trim()) {
+      return storedParticipantName.trim()
+    }
+
+    return getNextAnonymousName()
   })
   const [placeName, setPlaceName] = useState('仙台駅')
   const [addressText, setAddressText] = useState('')
@@ -361,10 +376,10 @@ export default function App({ roomInfo, participant }: AppProps) {
           </div>
 
           <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
-            部屋に参加する
+            集合する
           </h1>
           <p style={{ margin: '0 0 24px', color: '#47615d', fontSize: 18 }}>
-            参加するには、表示名を入力してください。<br />部屋ID: <strong>{roomId}</strong>
+            集合するには、表示名を入力してください。<br />待ち合わせID: <strong>{roomId}</strong>
           </p>
 
           <form onSubmit={handleJoinRoom} style={{ display: 'grid', gap: 18 }}>
@@ -373,7 +388,7 @@ export default function App({ roomInfo, participant }: AppProps) {
               <input
                 value={joinName}
                 onChange={(event) => setJoinName(event.target.value)}
-                placeholder="例: 佐藤さん"
+                placeholder="名無し1"
                 style={{
                   padding: '14px 12px',
                   borderRadius: 12,
@@ -407,7 +422,7 @@ export default function App({ roomInfo, participant }: AppProps) {
                 opacity: isJoining || !joinName.trim() ? 0.6 : 1,
               }}
             >
-              {isJoining ? '参加中...' : '部屋に参加'}
+              {isJoining ? '集合中...' : '集合する'}
             </button>
           </form>
         </div>
@@ -443,7 +458,7 @@ export default function App({ roomInfo, participant }: AppProps) {
         </div>
 
         <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(1.9rem, 5vw, 3rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
-          新しい部屋を作る
+          待ち合わせを作る
         </h1>
 
         <form onSubmit={handleCreateRoom} style={{ display: 'grid', gap: 18 }}>
@@ -539,7 +554,7 @@ export default function App({ roomInfo, participant }: AppProps) {
           </label>
 
           <p style={{ margin: 0, color: '#47615d', fontSize: 18, lineHeight: 1.6 }}>
-            作成者の名前と集合場所、集合時刻を入力して部屋を作成してください。
+            作成者の名前と集合場所、集合時刻を入力して待ち合わせを作成してください。
           </p>
 
           {errorMessage && (
@@ -564,7 +579,7 @@ export default function App({ roomInfo, participant }: AppProps) {
               opacity: isSubmitting || !creatorName.trim() || !placeName.trim() ? 0.6 : 1,
             }}
           >
-            {isSubmitting ? '作成中...' : '新しい部屋を作る'}
+            {isSubmitting ? '作成中...' : '待ち合わせを作る'}
           </button>
         </form>
       </div>
