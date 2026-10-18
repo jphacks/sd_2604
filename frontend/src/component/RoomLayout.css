@@ -49,6 +49,36 @@
   justify-content: center;
 }
 
+/* ロゴ（PC・スマホ共通）。ロゴを左、ROOM IDを右に置くため、左側の絶対配置を解除する */
+.room-header__top-left {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  display: flex;
+  align-items: center;
+}
+
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-logo__mark {
+  height: 30px;
+  width: auto;
+  flex: none;
+}
+
+.app-logo__text {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 1;
+  color: #23282B;
+}
+
 .room-id-block {
   display: inline-flex;
   flex-direction: column;
