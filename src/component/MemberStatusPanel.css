@@ -1,0 +1,307 @@
+.member-status {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e0e5dd;
+  border-radius: 5px;
+  background: #fffefa;
+}
+
+.member-status__header {
+  display: flex;
+  min-height: 70px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 17px;
+  border-bottom: 1px solid #e6e9e3;
+}
+
+.member-status__eyebrow {
+  margin: 0 0 3px;
+  color: #77837c;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.member-status__header h2 {
+  margin: 0;
+  color: #22352f;
+  font-family: "Yu Mincho", "Hiragino Mincho ProN", serif;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.member-status__count {
+  display: grid;
+  min-width: 36px;
+  height: 30px;
+  place-items: center;
+  border-radius: 15px;
+  background: #edf2ee;
+  color: #237765;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.member-status__list {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.member-status__row {
+  display: grid;
+  grid-template-columns: 34px minmax(70px, 1fr) minmax(64px, auto) minmax(58px, auto) minmax(92px, auto);
+  grid-template-areas: "avatar person distance eta verdict";
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf0eb;
+}
+
+.member-status__avatar {
+  grid-area: avatar;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: #237765;
+  box-shadow: 0 1px 5px rgb(33 52 43 / 20%);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.member-status__avatar.is-jammed {
+  background: #ad7932;
+}
+
+.member-status__person,
+.member-status__distance,
+.member-status__eta {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.member-status__person {
+  grid-area: person;
+}
+
+.member-status__distance {
+  grid-area: distance;
+}
+
+.member-status__eta {
+  grid-area: eta;
+}
+
+.member-status__person strong,
+.member-status__distance strong,
+.member-status__eta strong {
+  overflow: hidden;
+  color: #283a33;
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-status__distance strong,
+.member-status__eta strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.member-status__person span,
+.member-status__distance span,
+.member-status__eta span {
+  color: #7b8780;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.member-status__verdict {
+  grid-area: verdict;
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 6px 7px;
+  border-radius: 4px;
+  background: #eef2ed;
+  color: #637168;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.member-status__verdict.is-on-time {
+  background: #e5f1e9;
+  color: #26734f;
+}
+
+.member-status__verdict.is-late {
+  background: #fae9e4;
+  color: #ad4938;
+}
+
+.member-status__verdict small {
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.member-status__empty {
+  margin: 0;
+  padding: 20px 17px;
+  color: #7b8780;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.member-status__footer {
+  display: flex;
+  min-height: 39px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding: 8px 14px;
+  border-top: 1px solid #e6e9e3;
+  color: #77837c;
+  font-size: 9px;
+}
+
+/* ==========================================
+   MemberStatusPanel.css - スリム＆超極細画面対応
+   ========================================== */
+
+/* --- 1. 基本スタイル ＆ タッチ操作最適化 --- */
+.member-status {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  /* iPhone下部ホームバー被り防止 */
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+/* ボタンのタッチ感向上・誤選択防止 */
+.member-status button {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  transition: transform 0.1s ease, opacity 0.1s ease, background-color 0.2s ease;
+}
+
+/* ボタンを押したときのポコッとした押し感 */
+.member-status button:active {
+  transform: scale(0.95);
+  opacity: 0.85;
+}
+
+/* スクロール時の引っ掛かり防止 */
+.member-status__list {
+  -webkit-overflow-scrolling: touch;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* --- 2. スリム（コンパクト）カード用デザイン --- */
+.member-status-card {
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* 2行目の距離・到着予想ボックスを細身に */
+.member-status-info-box {
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+}
+
+/* --- 3. 標準スマホ対応 (480px以下) --- */
+@media (max-width: 480px) {
+  .member-status {
+    padding: 6px;
+  }
+}
+
+/* --- 4. 小型スマホ対応 (360px以下 / iPhone SE等) --- */
+@media (max-width: 390px) {
+  .member-status h2 {
+    font-size: 14px !important;
+  }
+  .member-status button {
+    padding: 4px 6px !important;
+    font-size: 10.5px !important;
+  }
+  .member-status strong {
+    font-size: 13.5px !important;
+  }
+}
+
+/* --- 5. 超極細端末対応 (320px以下 / 折りたたみサブ画面等) --- */
+@media (max-width: 280px) {
+  .member-status {
+    padding: 4px;
+  }
+  .member-status h2 {
+    font-size: 13px !important;
+  }
+  /* アイコンや文字をぎゅっと縮小してはみ出し防止 */
+  .member-status__avatar {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 12px !important;
+    line-height: 26px !important;
+  }
+  .member-status button {
+    padding: 3px 4px !important;
+    font-size: 9.5px !important;
+    min-height: 28px !important;
+  }
+  /* 上下・左右の余白を極限まで圧縮 */
+  .member-status-info-box {
+    padding: 3px 6px !important;
+    font-size: 10px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+  }
+}
+
+/* --- 6. タブレット・PC対応 (768px以上) --- */
+@media (min-width: 768px) {
+  .member-status {
+    max-width: 540px; /* 少し細身に絞ってスマートに */
+    margin: 0 auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* --- 7. スマホのダークモード自動連動 --- */
+@media (prefers-color-scheme: dark) {
+  .member-status {
+    color: #f1f5f9;
+  }
+  .member-status h2,
+  .member-status strong {
+    color: #f8fafc !important;
+  }
+  .member-status__eyebrow,
+  .member-status__footer {
+    color: #94a3b8 !important;
+  }
+}

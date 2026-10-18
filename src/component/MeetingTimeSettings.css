@@ -1,0 +1,129 @@
+.meeting-time-settings {
+  position: relative;
+}
+
+.meeting-time-settings__trigger {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid #d9e0d9;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #33463d;
+  cursor: pointer;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.meeting-time-settings__trigger:hover {
+  border-color: #237765;
+}
+
+.meeting-time-settings__trigger span {
+  color: #237765;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.meeting-time-settings__panel {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: min(310px, calc(100vw - 24px));
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid #e0e5dd;
+  border-radius: 6px;
+  background: #fffefa;
+  box-shadow: 0 10px 28px rgb(34 53 47 / 16%);
+}
+
+.meeting-time-settings__panel label {
+  color: #52665d;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.meeting-time-settings__panel input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 9px;
+  border: 1px solid #d9e0d9;
+  border-radius: 4px;
+  background: white;
+  color: #22352f;
+  font: inherit;
+  font-size: 12px;
+}
+
+.meeting-time-settings__panel input:focus-visible,
+.meeting-time-settings__trigger:focus-visible,
+.meeting-time-settings__actions button:focus-visible {
+  outline: 2px solid #237765;
+  outline-offset: 2px;
+}
+
+.meeting-time-settings__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.meeting-time-settings__actions button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d9e0d9;
+  border-radius: 4px;
+  background: #fffefa;
+  color: #52665d;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+}
+
+.meeting-time-settings__actions .meeting-time-settings__save {
+  border-color: #237765;
+  background: #237765;
+  color: white;
+}
+
+.meeting-time-settings__actions .meeting-time-settings__save:disabled {
+  border-color: #d9e0d9;
+  background: #e7ebe6;
+  color: #909b94;
+  cursor: not-allowed;
+}
+
+.meeting-time-settings__error {
+  margin: 0;
+  color: #b64231;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .meeting-time-settings__trigger {
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  .meeting-time-settings__panel {
+    position: fixed;
+    z-index: 21;
+    top: auto;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-height: min(35dvh, 280px);
+    overflow: auto;
+    padding: 14px;
+  }
+}
