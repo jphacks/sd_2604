@@ -140,6 +140,7 @@
     border: 0;
     border-bottom: 1px solid #e0e5dd;
     border-radius: 0;
+    height: 100%;
   }
 
   .member-status__header {
