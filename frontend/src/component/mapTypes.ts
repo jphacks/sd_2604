@@ -6,6 +6,7 @@ export interface Destination {
 export interface DestinationInput extends Destination {
   name?: string | null
   address?: string | null
+  userId?: string | null
 }
 
 export interface MemberStatus {
@@ -46,5 +47,6 @@ export interface MapState {
   destinationName?: string | null
   destinationAddress?: string | null
   meetingTime: string | null
+  ownerId?: string | null
   members: MemberStatus[]
 }

@@ -28,6 +28,7 @@ interface MemberStatus {
 
 interface Room {
   id: string;
+  ownerId: string | null;
   title: string;
   targetName: string;
   destinationName: string | null;
@@ -87,6 +88,8 @@ app.post('/api/rooms', async (c) => {
       meetingTime: string;
       destinationName?: string | null;
       destinationAddress?: string | null;
+      ownerId?: string | null;
+      ownerName?: string | null;
     }>();
 
     let roomId = '';
@@ -94,8 +97,11 @@ app.post('/api/rooms', async (c) => {
       roomId = crypto.randomUUID().split('-')[0];
     } while (await getRoomById(roomId, c.env));
 
+    const ownerId = (body.ownerId && body.ownerId.trim()) || `owner_${crypto.randomUUID()}`;
+
     const newRoom: Room = {
       id: roomId,
+      ownerId,
       title: body.title || '待ち合わせ',
       targetName: body.targetName || '目的地',
       destinationName: body.destinationName?.trim() || body.targetName?.trim() || '目的地',
@@ -124,6 +130,7 @@ app.get('/api/rooms/:roomId', async (c) => {
 
   return c.json({
     ...room,
+    ownerId: room.ownerId ?? null,
     targetName: room.targetName,
     members: Object.values(room.members),
   });
@@ -306,7 +313,11 @@ app.put('/api/rooms/:roomId/destination', async (c) => {
   const room = await getRoomById(roomId, c.env);
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
-  const body = await c.req.json<{ lat: unknown; lng: unknown; name?: unknown; address?: unknown }>();
+  const body = await c.req.json<{ lat: unknown; lng: unknown; name?: unknown; address?: unknown; userId?: string | null }>();
+
+  if (room.ownerId && body.userId !== room.ownerId) {
+    return c.json({ success: false, error: 'Only room owner can update destination' }, 403);
+  }
 
   if (
     typeof body.lat !== 'number' ||
@@ -366,6 +377,7 @@ app.get('/api/rooms/:roomId/map-state', async (c) => {
 
   return c.json({
     destination: { lat: room.targetLat, lng: room.targetLng },
+    ownerId: room.ownerId ?? null,
     targetName: room.targetName,
     destinationName: room.destinationName ?? room.targetName ?? '目的地',
     destinationAddress: room.destinationAddress ?? null,

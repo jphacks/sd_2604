@@ -8,6 +8,13 @@ export interface CreateRoomRequest {
   meetingTime: string
   destinationName?: string | null
   destinationAddress?: string | null
+  ownerId?: string
+  ownerName?: string
+}
+
+export interface JoinRoomRequest {
+  userId: string
+  userName: string
 }
 
 export interface CreateRoomResponse {
@@ -48,6 +55,20 @@ export class MapApiClient {
     return (await response.json()) as CreateRoomResponse
   }
 
+  async joinRoom(roomId: string, payload: JoinRoomRequest): Promise<{ success: boolean; userId?: string; userName?: string; room?: { id: string; ownerId?: string | null } }> {
+    const response = await this.request(`${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Join room failed: ${response.status}`)
+    }
+
+    return (await response.json()) as { success: boolean; userId?: string; userName?: string; room?: { id: string; ownerId?: string | null } }
+  }
+
   async getMapState(roomId?: string | null): Promise<MapState> {
     const endpoint = roomId ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/map-state` : `${this.baseUrl}/api/map-state`
     const response = await this.request(endpoint)
@@ -69,6 +90,7 @@ export class MapApiClient {
       meetingTime: typeof value.meetingTime === 'string' && Number.isFinite(Date.parse(value.meetingTime))
         ? value.meetingTime
         : null,
+      ownerId: typeof value.ownerId === 'string' && value.ownerId.trim() ? value.ownerId.trim() : null,
       members: value.members,
     }
   }

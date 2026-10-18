@@ -36,6 +36,23 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
   const [mapPickVersion, setMapPickVersion] = useState(0)
   const [viewRevision, setViewRevision] = useState(0)
 
+  const currentParticipantId = participant?.id ?? (
+    typeof window !== 'undefined' && roomId
+      ? (() => {
+          const raw = window.localStorage.getItem(`meetpoint.room-participant.${roomId}`)
+          if (!raw) return null
+          try {
+            const parsed = JSON.parse(raw) as { id?: string }
+            return typeof parsed.id === 'string' && parsed.id.trim() ? parsed.id : null
+          } catch {
+            return null
+          }
+        })()
+      : null
+  )
+  const isOwner = !!roomId && !!currentParticipantId && !!mapState?.ownerId && mapState.ownerId === currentParticipantId
+  const destinationLocked = Boolean(roomId) && !isOwner
+
   useEffect(() => {
     let disposed = false
 
@@ -64,16 +81,25 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
   const meetingTime = roomInfo?.meetingTime ?? mapState?.meetingTime ?? null
 
   const saveDestination = async (nextDestination: DestinationInput) => {
+    if (!isOwner) {
+      setDestinationSaveError('オーナーだけが目的地を変更できます。')
+      return false
+    }
+
     setIsSavingDestination(true)
     setDestinationSaveError(null)
 
     try {
-      const updatedDestination = await apiClient.updateDestination(roomId, nextDestination)
+      const updatedDestination = await apiClient.updateDestination(roomId, {
+        ...nextDestination,
+        userId: currentParticipantId ?? null,
+      })
       setMapState((current) => ({
         destination: { lat: updatedDestination.lat, lng: updatedDestination.lng },
         destinationName: updatedDestination.name ?? current?.destinationName ?? null,
         destinationAddress: updatedDestination.address ?? current?.destinationAddress ?? null,
         meetingTime: current?.meetingTime ?? null,
+        ownerId: current?.ownerId ?? null,
         members: current?.members ?? [],
       }))
       setViewRevision((revision) => revision + 1)
@@ -139,6 +165,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           isPickingOnMap={isPickingOnMap}
           mapPickedPoint={mapPickedPoint}
           mapPickVersion={mapPickVersion}
+          isLocked={destinationLocked}
           onPickingChange={setIsPickingOnMap}
           onPreviewChange={setPreviewDestination}
           onSave={saveDestination}

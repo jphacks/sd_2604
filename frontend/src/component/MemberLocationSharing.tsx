@@ -12,32 +12,78 @@ interface MemberLocationSharingProps {
   userName?: string
 }
 
-function getParticipantId(): string {
-  const storageKey = 'meetpoint.participant-id'
+function getDeviceId(): string {
+  if (typeof window === 'undefined') return 'unknown-device'
+
+  const existing = window.localStorage.getItem('meetpoint.device-id')
+  if (existing && existing.trim()) return existing
+
+  const fingerprint = [
+    window.navigator.userAgent,
+    window.navigator.language,
+    window.screen.width,
+    window.screen.height,
+    window.screen.colorDepth,
+  ].join('|')
+
+  const next = btoa(fingerprint).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32) || `device-${Date.now()}`
+  window.localStorage.setItem('meetpoint.device-id', next)
+  return next
+}
+
+function getParticipantId(roomId?: string | null): string {
+  const storageKey = roomId ? `meetpoint.room-participant.${roomId}` : 'meetpoint.participant-id'
 
   try {
-    const savedId = localStorage.getItem(storageKey)
-    if (savedId) return savedId
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as { id?: string }
+        if (typeof parsed.id === 'string' && parsed.id.trim()) return parsed.id
+      } catch {
+        // ignore malformed data
+      }
+    }
 
-    const newId = crypto.randomUUID()
-    localStorage.setItem(storageKey, newId)
-    return newId
+    const generated = roomId ? `${getDeviceId()}-${roomId}` : `${getDeviceId()}-global`
+    localStorage.setItem(storageKey, JSON.stringify({ id: generated }))
+    return generated
   } catch {
-    return `participant-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    return roomId ? `${getDeviceId()}-${roomId}` : `${getDeviceId()}-global`
   }
 }
 
-function getStoredParticipantName(defaultName: string): string {
-  const storageKey = 'meetpoint.participant-name'
+function getStoredParticipantName(defaultName: string, roomId?: string | null): string {
+  const storageKey = roomId ? `meetpoint.room-participant.${roomId}` : 'meetpoint.participant-name'
 
   try {
-    const savedName = localStorage.getItem(storageKey)
-    if (savedName && savedName.trim()) return savedName.trim()
+    const saved = localStorage.getItem(storageKey)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as { name?: string }
+        if (typeof parsed.name === 'string' && parsed.name.trim()) return parsed.name.trim()
+      } catch {
+        // ignore malformed data
+      }
+    }
+
+    const globalName = localStorage.getItem('meetpoint.participant-name')
+    if (globalName && globalName.trim()) return globalName.trim()
   } catch {
-    // ignore access failures
+    // ignore storage failures
   }
 
   return defaultName
+}
+
+function writeRoomParticipant(roomId: string | null | undefined, participant: { id: string; name: string }) {
+  if (!roomId) return
+
+  try {
+    localStorage.setItem(`meetpoint.room-participant.${roomId}`, JSON.stringify({ id: participant.id, name: participant.name }))
+  } catch {
+    // ignore storage failures
+  }
 }
 
 export default function MemberLocationSharing({
@@ -47,8 +93,8 @@ export default function MemberLocationSharing({
   userId,
   userName = '自分',
 }: MemberLocationSharingProps) {
-  const [participantId] = useState(userId ?? getParticipantId)
-  const [participantName] = useState(() => getStoredParticipantName(userName || '自分'))
+  const [participantId] = useState(userId ?? getParticipantId(roomId))
+  const [participantName, setParticipantName] = useState(() => getStoredParticipantName(userName || '自分', roomId))
   const [isSharing, setIsSharing] = useState(false)
   const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -56,29 +102,44 @@ export default function MemberLocationSharing({
   const destinationLat = destination?.lat
   const destinationLng = destination?.lng
 
-  const displayName = participantName.trim() || '自分'
-
   useEffect(() => {
     jamOutsideRadiusRef.current = jamOutsideRadius
   }, [jamOutsideRadius])
 
   useEffect(() => {
-    if (!isSharing || destinationLat === undefined || destinationLng === undefined) return
-    const target = { lat: destinationLat, lng: destinationLng }
+    const nextName = (userName || '自分').trim()
+    if (nextName) {
+      setParticipantName(nextName)
+      try {
+        localStorage.setItem('meetpoint.participant-name', nextName)
+        if (roomId) {
+          writeRoomParticipant(roomId, { id: participantId, name: nextName })
+        }
+      } catch {
+        // ignore storage failures
+      }
+    }
+  }, [participantId, roomId, userName])
 
+  const displayName = participantName.trim() || '自分'
+
+  useEffect(() => {
+    if (!isSharing || destinationLat === undefined || destinationLng === undefined) return
+
+    const target = { lat: destinationLat, lng: destinationLng }
     const locationService = new MemberLocationService()
     let disposed = false
-    let lastSyncAt = 0
     let watchId: number | null = null
     let isUsingLowAccuracy = false
 
     const startWatching = (enableHighAccuracy: boolean) => {
       if (disposed) return
+
       isUsingLowAccuracy = !enableHighAccuracy
       watchId = navigator.geolocation.watchPosition(
         (position) => {
           if (disposed) return
-          setErrorMessage(null)
+
           const sample = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -86,6 +147,7 @@ export default function MemberLocationSharing({
             speed: position.coords.speed,
             timestamp: position.timestamp,
           }
+
           const update = locationService.createUpdate(
             participantId,
             displayName,
@@ -93,10 +155,6 @@ export default function MemberLocationSharing({
             target,
             jamOutsideRadiusRef.current,
           )
-
-          const now = Date.now()
-          if (now - lastSyncAt < 5000) return
-          lastSyncAt = now
 
           void apiClient
             .syncLocation(roomId, update.payload)
@@ -109,6 +167,7 @@ export default function MemberLocationSharing({
         },
         (error) => {
           if (disposed) return
+
           if (error.code === error.PERMISSION_DENIED) {
             setErrorMessage('位置情報が許可されていません。ブラウザの設定で許可してください。')
             setIsSharing(false)
@@ -121,11 +180,11 @@ export default function MemberLocationSharing({
             return
           }
 
-          const message =
+          setErrorMessage(
             error.code === error.TIMEOUT
-              ? '現在地の取得に時間がかかっています。'
-              : '端末が現在地を特定できません。'
-          setErrorMessage(message)
+              ? '現在地の取得に時間がかかっています。屋外へ移動するか、端末の位置情報サービスを確認してください。'
+              : '端末が現在地を特定できません。位置情報サービスとWi-Fi・モバイル通信を確認してください。',
+          )
         },
         {
           enableHighAccuracy,
@@ -158,6 +217,7 @@ export default function MemberLocationSharing({
         return
       }
     }
+
     setErrorMessage(null)
     setIsSharing(nextSharing)
   }
