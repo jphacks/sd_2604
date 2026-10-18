@@ -314,3 +314,16 @@
   color: #23282B;
 }
 }
+
+/* PC（641px以上）：ロゴは左のまま、ルームID・日付・集合時刻を右に寄せる。スマホ用の設定は変更しない */
+@media (min-width: 641px) {
+  .room-header__inner {
+    width: 100%;
+    align-items: flex-end;
+  }
+
+  .room-header__bottom {
+    width: auto;
+    justify-content: flex-end;
+  }
+}
