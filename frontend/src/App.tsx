@@ -46,13 +46,36 @@ function getRoomOwnerStorageKey(roomId: string): string {
   return `meetpoint.room-owner.${roomId}`
 }
 
-function getNextAnonymousName(): string {
-  if (typeof window === 'undefined') return '名無し1'
+function parseAnonymousNameNumber(name: string): number | null {
+  const trimmed = name.trim()
+  if (!trimmed.startsWith('名無し')) return null
 
-  const currentIndex = Number(window.localStorage.getItem('meetpoint.anonymous-name-index') ?? '0')
-  const nextIndex = Number.isFinite(currentIndex) ? currentIndex + 1 : 1
-  window.localStorage.setItem('meetpoint.anonymous-name-index', String(nextIndex))
-  return `名無し${nextIndex}`
+  const match = trimmed.match(/^名無し(?:（(\d+)）|\((\d+)\)|(\d+))?$/u)
+  if (!match) return null
+
+  const matchedNumber = match[1] ?? match[2] ?? match[3]
+  if (matchedNumber === undefined) return 0
+  return Number(matchedNumber)
+}
+
+function getNextAnonymousName(existingNames: string[] = []): string {
+  const usedNumbers = new Set<number>()
+
+  for (const name of existingNames) {
+    const parsed = parseAnonymousNameNumber(name)
+    if (parsed !== null) {
+      usedNumbers.add(parsed)
+    }
+  }
+
+  if (usedNumbers.size === 0) return '名無し'
+
+  let nextIndex = 1
+  while (usedNumbers.has(nextIndex)) {
+    nextIndex += 1
+  }
+
+  return `名無し（${nextIndex}）`
 }
 
 function readRoomParticipant(roomId: string | null | undefined): { id: string; name: string } | null {
@@ -263,16 +286,18 @@ export default function App({ roomInfo, participant }: AppProps) {
     if (typeof window === 'undefined') return ''
     return window.localStorage.getItem('meetpoint-creator-name') ?? ''
   })
+  const [roomMemberNames, setRoomMemberNames] = useState<string[]>([])
   const [joinName, setJoinName] = useState(() => {
-    if (typeof window === 'undefined') return '名無し1'
+    if (typeof window === 'undefined') return '名無し'
 
     const storedParticipantName = readRoomParticipant(roomId)?.name ?? window.localStorage.getItem('meetpoint.participant-name')
     if (storedParticipantName && storedParticipantName.trim()) {
       return storedParticipantName.trim()
     }
 
-    return getNextAnonymousName()
+    return '名無し'
   })
+  const [hasInitializedJoinName, setHasInitializedJoinName] = useState(false)
   const [placeName, setPlaceName] = useState('')
   const [addressText, setAddressText] = useState('')
   const [placeCandidates, setPlaceCandidates] = useState<GeocodeCandidate[]>([])
@@ -291,6 +316,45 @@ export default function App({ roomInfo, participant }: AppProps) {
       window.localStorage.setItem('meetpoint-creator-name', creatorName)
     }
   }, [creatorName])
+
+  useEffect(() => {
+    if (!roomId) {
+      setRoomMemberNames([])
+      setHasInitializedJoinName(false)
+      return
+    }
+
+    let disposed = false
+
+    const loadRoomMembers = async () => {
+      try {
+        const state = await apiClient.getMapState(roomId)
+        if (disposed) return
+        setRoomMemberNames(state.members.map((member) => member.name).filter((name) => name && name.trim()))
+      } catch {
+        if (!disposed) setRoomMemberNames([])
+      }
+    }
+
+    void loadRoomMembers()
+    return () => {
+      disposed = true
+    }
+  }, [apiClient, roomId])
+
+  useEffect(() => {
+    if (!roomId || hasInitializedJoinName) return
+
+    const suggestedDefaultName = getNextAnonymousName(roomMemberNames)
+    setJoinName((currentName) => {
+      const trimmedCurrent = currentName.trim()
+      if (!trimmedCurrent || /^名無し(?:（\d+）)?$/.test(trimmedCurrent)) {
+        return suggestedDefaultName
+      }
+      return currentName
+    })
+    setHasInitializedJoinName(true)
+  }, [roomId, roomMemberNames, hasInitializedJoinName])
 
   const handleSearchByPlaceName = async () => {
     setErrorMessage(null)

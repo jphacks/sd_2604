@@ -12,6 +12,7 @@ interface MemberStatusPanelProps {
   onReachDestinationLate?: (memberId: string) => void
   timerText?: string | null
   canAdjustDelay?: boolean
+  currentUserId?: string | null
 }
 
 function getArrivalStatus(member: MemberStatus, currentDelay: number, meetingTime?: string, nowMs: number = Date.now()): 'on-time' | 'late' | 'unknown' {
@@ -77,6 +78,7 @@ export default function MemberStatusPanel({
   onReachDestinationLate,
   timerText,
   canAdjustDelay = false,
+  currentUserId,
 }: MemberStatusPanelProps) {
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null)
   const [now, setNow] = useState<Date>(new Date())
@@ -156,6 +158,7 @@ export default function MemberStatusPanel({
             const currentTotalDelay = member.delayMinutes || 0
             const arrivalStatus = getArrivalStatus(member, currentTotalDelay, meetingTime, now.getTime())
             const isExpanded = expandedMemberId === member.id
+            const canAdjustThisMember = canAdjustDelay && currentUserId !== null && currentUserId !== undefined && member.id === currentUserId
 
             const mLat = member.lat
             const mLng = member.lng
@@ -305,7 +308,7 @@ export default function MemberStatusPanel({
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                        {canAdjustDelay && (
+                        {canAdjustThisMember && (
                           <button
                             type="button"
                             onClick={() => setExpandedMemberId((prev) => (prev === member.id ? null : member.id))}
@@ -366,7 +369,7 @@ export default function MemberStatusPanel({
                     </div>
                   </div>
 
-                  {canAdjustDelay && isExpanded && (
+                  {canAdjustThisMember && isExpanded && (
                     <div style={{
                       marginTop: '8px',
                       padding: '8px',

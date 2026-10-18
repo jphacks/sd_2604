@@ -167,6 +167,11 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
 
   const handleAddDelay = async (minutes: number, memberId: string) => {
     if (!roomId || !memberId) return
+    if (memberId !== currentParticipantId) {
+      setMeetingTimeSaveError('自分の遅延時間だけを調整できます。')
+      return
+    }
+
     try {
       await apiClient.applyDelay(roomId, memberId, minutes)
       await refreshMapState()
@@ -220,9 +225,10 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           members={mapState?.members ?? []}
           destination={destination}
           meetingTime={meetingTime ?? undefined}
-          onAddDelay={isOwner ? handleAddDelay : undefined}
+          onAddDelay={handleAddDelay}
           errorMessage={meetingTimeSaveError}
-          canAdjustDelay={isOwner}
+          canAdjustDelay={Boolean(currentParticipantId)}
+          currentUserId={currentParticipantId}
         />
       }
     >
