@@ -5,6 +5,7 @@ interface MeetingTimeSettingsProps {
   meetingTime: string | null
   isSaving: boolean
   errorMessage: string | null
+  isLocked?: boolean
   onSave: (meetingTime: string | null) => Promise<boolean>
 }
 
@@ -42,6 +43,7 @@ export default function MeetingTimeSettings({
   meetingTime,
   isSaving,
   errorMessage,
+  isLocked = false,
   onSave,
 }: MeetingTimeSettingsProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -57,7 +59,7 @@ export default function MeetingTimeSettings({
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!inputValue || isSaving) return
+    if (isLocked || !inputValue || isSaving) return
 
     const selectedTime = new Date(inputValue)
     if (!Number.isFinite(selectedTime.getTime())) return
@@ -67,7 +69,7 @@ export default function MeetingTimeSettings({
   }
 
   const clearTime = async () => {
-    if (isSaving) return
+    if (isLocked || isSaving) return
     const saved = await onSave(null)
     if (saved) setIsOpen(false)
   }
@@ -78,8 +80,10 @@ export default function MeetingTimeSettings({
         className={`meeting-time-settings__trigger is-${urgency}`}
         type="button"
         aria-expanded={isOpen}
-        title="タップして集合時刻を再設定"
+        title={isLocked ? 'オーナーのみ集合時刻を変更できます' : 'タップして集合時刻を再設定'}
+        disabled={isLocked || isSaving}
         onClick={() => {
+          if (isLocked) return
           if (!isOpen) setInputValue(toLocalInputValue(meetingTime))
           setIsOpen((open) => !open)
         }}
@@ -103,7 +107,7 @@ export default function MeetingTimeSettings({
             <button type="button" onClick={() => setIsOpen(false)}>
               キャンセル
             </button>
-            {meetingTime && (
+            {meetingTime && !isLocked && (
               <button
                 type="button"
                 className="meeting-time-settings__clear"
@@ -113,8 +117,8 @@ export default function MeetingTimeSettings({
                 解除
               </button>
             )}
-            <button type="submit" className="meeting-time-settings__save" disabled={!inputValue || isSaving}>
-              {isSaving ? '保存中...' : '保存'}
+            <button type="submit" className="meeting-time-settings__save" disabled={isLocked || !inputValue || isSaving}>
+              {isSaving ? '保存中...' : isLocked ? 'オーナーのみ変更可能' : '保存'}
             </button>
           </div>
         </form>

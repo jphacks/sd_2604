@@ -95,7 +95,7 @@ export default function MemberLocationSharing({
 }: MemberLocationSharingProps) {
   const [participantId] = useState(userId ?? getParticipantId(roomId))
   const [participantName, setParticipantName] = useState(() => getStoredParticipantName(userName || '自分', roomId))
-  const [isSharing, setIsSharing] = useState(false)
+  const [isSharing, setIsSharing] = useState(true)
   const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const jamOutsideRadiusRef = useRef(jamOutsideRadius)

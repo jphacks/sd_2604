@@ -50,13 +50,30 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
         })()
       : null
   )
-  const isOwner = !!roomId && !!currentParticipantId && !!mapState?.ownerId && mapState.ownerId === currentParticipantId
+  const persistedOwnerId = typeof window !== 'undefined' && roomId
+    ? (window.localStorage.getItem(`meetpoint.room-owner.${roomId}`) ?? '').trim() || null
+    : null
+  const isOwner = !!roomId && !!currentParticipantId && (
+    (!!mapState?.ownerId && mapState.ownerId === currentParticipantId) ||
+    persistedOwnerId === currentParticipantId
+  )
   const destinationLocked = Boolean(roomId) && !isOwner
+  const meetingTimeLocked = Boolean(roomId) && !isOwner
+
+  const refreshMapState = async () => {
+    try {
+      const nextState = await apiClient.getMapState(roomId)
+      setMapState(nextState)
+      setConnectionError(false)
+    } catch {
+      setConnectionError(true)
+    }
+  }
 
   useEffect(() => {
     let disposed = false
 
-    const refreshMapState = async () => {
+    const runRefresh = async () => {
       try {
         const nextState = await apiClient.getMapState(roomId)
         if (!disposed) {
@@ -68,8 +85,8 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
       }
     }
 
-    void refreshMapState()
-    const intervalId = window.setInterval(() => void refreshMapState(), 5000)
+    void runRefresh()
+    const intervalId = window.setInterval(() => void runRefresh(), 2000)
 
     return () => {
       disposed = true
@@ -113,18 +130,25 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
   }
 
   const saveMeetingTime = async (nextMeetingTime: string | null) => {
+    if (!isOwner) {
+      setMeetingTimeSaveError('オーナーだけが集合時刻を変更できます。')
+      return false
+    }
+
     setIsSavingMeetingTime(true)
     setMeetingTimeSaveError(null)
 
     try {
-      const updatedMeetingTime = await apiClient.updateMeetingTime(roomId, nextMeetingTime)
+      const updatedMeetingTime = await apiClient.updateMeetingTime(roomId, nextMeetingTime, currentParticipantId ?? null)
       setMapState((current) => ({
         destination: current?.destination ?? null,
         destinationName: current?.destinationName ?? null,
         destinationAddress: current?.destinationAddress ?? null,
         meetingTime: updatedMeetingTime,
+        ownerId: current?.ownerId ?? null,
         members: current?.members ?? [],
       }))
+      await refreshMapState()
       return true
     } catch {
       setMeetingTimeSaveError('集合時刻を保存できませんでした。接続を確認してください。')
@@ -141,6 +165,16 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
     setIsPickingOnMap(false)
   }
 
+  const handleAddDelay = async (minutes: number, memberId: string) => {
+    if (!roomId || !memberId) return
+    try {
+      await apiClient.applyDelay(roomId, memberId, minutes)
+      await refreshMapState()
+    } catch {
+      setMeetingTimeSaveError('遅延時間の更新に失敗しました。')
+    }
+  }
+
   return (
     <RoomLayout
       roomId={roomId}
@@ -152,6 +186,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           meetingTime={meetingTime}
           isSaving={isSavingMeetingTime}
           errorMessage={meetingTimeSaveError}
+          isLocked={meetingTimeLocked}
           onSave={saveMeetingTime}
         />
       }
@@ -185,6 +220,8 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           members={mapState?.members ?? []}
           destination={destination}
           meetingTime={meetingTime ?? undefined}
+          onAddDelay={handleAddDelay}
+          errorMessage={meetingTimeSaveError}
         />
       }
     >

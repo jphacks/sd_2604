@@ -117,14 +117,14 @@ export class MapApiClient {
     }
   }
 
-  async updateMeetingTime(roomId: string | null | undefined, meetingTime: string | null): Promise<string | null> {
+  async updateMeetingTime(roomId: string | null | undefined, meetingTime: string | null, userId?: string | null): Promise<string | null> {
     const endpoint = roomId
       ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/meeting-time`
       : `${this.baseUrl}/api/meeting-time`
     const response = await this.request(endpoint, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meetingTime }),
+      body: JSON.stringify({ meetingTime, userId: userId ?? null }),
     })
     if (!response.ok) throw new Error(`Meeting time update failed: ${response.status}`)
 
@@ -146,6 +146,18 @@ export class MapApiClient {
       body: JSON.stringify(payload),
     })
     if (!response.ok) throw new Error(`Location sync failed: ${response.status}`)
+  }
+
+  async applyDelay(roomId: string | null | undefined, userId: string, addMinutes: number): Promise<void> {
+    if (!roomId) return
+
+    const response = await this.request(`${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/delay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, addMinutes }),
+    })
+
+    if (!response.ok) throw new Error(`Delay update failed: ${response.status}`)
   }
 
   private validateDestination(value: unknown): Destination | null {
