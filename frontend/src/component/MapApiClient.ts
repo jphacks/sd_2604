@@ -148,6 +148,18 @@ export class MapApiClient {
     if (!response.ok) throw new Error(`Location sync failed: ${response.status}`)
   }
 
+  async applyDelay(roomId: string | null | undefined, userId: string, addMinutes: number): Promise<void> {
+    if (!roomId) return
+
+    const response = await this.request(`${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/delay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, addMinutes }),
+    })
+
+    if (!response.ok) throw new Error(`Delay update failed: ${response.status}`)
+  }
+
   private validateDestination(value: unknown): Destination | null {
     if (value === null || value === undefined) return null
     if (typeof value !== 'object') throw new Error('Invalid destination coordinates')

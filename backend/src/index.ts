@@ -99,6 +99,23 @@ app.post('/api/rooms', async (c) => {
 
     const ownerId = (body.ownerId && body.ownerId.trim()) || `owner_${crypto.randomUUID()}`;
 
+    const ownerName = body.ownerName?.trim() || 'オーナー';
+    const ownerMember: MemberStatus = {
+      id: ownerId,
+      name: ownerName,
+      delayMinutes: 0,
+      lat: null,
+      lng: null,
+      speed: null,
+      etaMinutes: null,
+      paceIsEstimated: false,
+      bearingDegrees: null,
+      locationJammed: false,
+      isWithin500m: false,
+      status: 'on_the_way',
+      updatedAt: new Date().toISOString(),
+    };
+
     const newRoom: Room = {
       id: roomId,
       ownerId,
@@ -109,7 +126,7 @@ app.post('/api/rooms', async (c) => {
       targetLat: body.targetLat,
       targetLng: body.targetLng,
       meetingTime: body.meetingTime,
-      members: {},
+      members: { [ownerId]: ownerMember },
     };
 
     roomsStore[roomId] = newRoom;

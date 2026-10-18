@@ -165,6 +165,16 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
     setIsPickingOnMap(false)
   }
 
+  const handleAddDelay = async (minutes: number, memberId: string) => {
+    if (!roomId || !memberId) return
+    try {
+      await apiClient.applyDelay(roomId, memberId, minutes)
+      await refreshMapState()
+    } catch {
+      setMeetingTimeSaveError('遅延時間の更新に失敗しました。')
+    }
+  }
+
   return (
     <RoomLayout
       roomId={roomId}
@@ -210,6 +220,8 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           members={mapState?.members ?? []}
           destination={destination}
           meetingTime={meetingTime ?? undefined}
+          onAddDelay={handleAddDelay}
+          errorMessage={meetingTimeSaveError}
         />
       }
     >
