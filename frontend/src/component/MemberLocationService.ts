@@ -101,6 +101,7 @@ export class MemberLocationService {
       distanceMetres,
       paceIsEstimated,
       payload: {
+        arrivalAt: etaMinutes === 0 ? new Date().toISOString() : null,
         userId,
         userName,
         userLat: sharedPosition.lat,

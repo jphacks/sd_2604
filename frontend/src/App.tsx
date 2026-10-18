@@ -19,6 +19,51 @@ function getRoomIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get('room')
 }
 
+function getDeviceId(): string {
+  if (typeof window === 'undefined') return 'unknown-device'
+
+  const existing = window.localStorage.getItem('meetpoint.device-id')
+  if (existing && existing.trim()) return existing
+
+  const fingerprint = [
+    window.navigator.userAgent,
+    window.navigator.language,
+    window.screen.width,
+    window.screen.height,
+    window.screen.colorDepth,
+  ].join('|')
+
+  const next = btoa(fingerprint).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32) || `device-${Date.now()}`
+  window.localStorage.setItem('meetpoint.device-id', next)
+  return next
+}
+
+function getRoomParticipantStorageKey(roomId: string): string {
+  return `meetpoint.room-participant.${roomId}`
+}
+
+function readRoomParticipant(roomId: string | null | undefined): { id: string; name: string } | null {
+  if (!roomId || typeof window === 'undefined') return null
+
+  try {
+    const stored = window.localStorage.getItem(getRoomParticipantStorageKey(roomId))
+    if (!stored) return null
+    const parsed = JSON.parse(stored) as { id?: string; name?: string }
+    if (typeof parsed.id === 'string' && parsed.id.trim() && typeof parsed.name === 'string' && parsed.name.trim()) {
+      return { id: parsed.id, name: parsed.name.trim() }
+    }
+  } catch {
+    // ignore malformed data
+  }
+
+  return null
+}
+
+function writeRoomParticipant(roomId: string, participant: { id: string; name: string }) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(getRoomParticipantStorageKey(roomId), JSON.stringify({ id: participant.id, name: participant.name }))
+}
+
 function setRoomIdInUrl(roomId: string) {
   if (typeof window === 'undefined') return
   const url = new URL(window.location.href)
@@ -116,12 +161,21 @@ export default function App({ roomInfo, participant }: AppProps) {
     if (typeof window === 'undefined') return ''
     return window.localStorage.getItem('meetpoint-creator-name') ?? ''
   })
+  const [joinName, setJoinName] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return readRoomParticipant(roomId)?.name ?? window.localStorage.getItem('meetpoint.participant-name') ?? ''
+  })
   const [placeName, setPlaceName] = useState('仙台駅')
   const [addressText, setAddressText] = useState('')
   const [meetingTime, setMeetingTime] = useState(createInitialMeetingTime)
   const [isSearching, setIsSearching] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isJoining, setIsJoining] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [joinedParticipant, setJoinedParticipant] = useState<{ id: string; name: string } | undefined>(() => {
+    if (!roomId) return undefined
+    return readRoomParticipant(roomId) ?? undefined
+  })
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -181,6 +235,8 @@ export default function App({ roomInfo, participant }: AppProps) {
         meetingTime: meetingTime || createInitialMeetingTime(),
         destinationName: placeName.trim(),
         destinationAddress: addressText.trim() || result.displayName,
+        ownerId: `${getDeviceId()}-${Date.now()}`,
+        ownerName: trimmedCreatorName,
       })
       const nextRoomId = created.roomId ?? created.room?.id
       if (!nextRoomId) {
@@ -188,13 +244,14 @@ export default function App({ roomInfo, participant }: AppProps) {
         return
       }
 
+      const roomParticipant = { id: `${getDeviceId()}-${nextRoomId}`, name: trimmedCreatorName }
       if (typeof window !== 'undefined') {
-        const ownerId = window.localStorage.getItem('meetpoint.participant-id') ?? crypto.randomUUID()
-        window.localStorage.setItem('meetpoint.participant-id', ownerId)
+        window.localStorage.setItem('meetpoint-creator-name', trimmedCreatorName)
         window.localStorage.setItem('meetpoint.participant-name', trimmedCreatorName)
-        window.localStorage.setItem(`meetpoint.room-owner.${nextRoomId}`, ownerId)
         window.localStorage.setItem('meetpoint-last-room-id', nextRoomId)
+        writeRoomParticipant(nextRoomId, roomParticipant)
       }
+      setJoinedParticipant(roomParticipant)
       setRoomId(nextRoomId)
       setRoomIdInUrl(nextRoomId)
     } catch {
@@ -204,8 +261,130 @@ export default function App({ roomInfo, participant }: AppProps) {
     }
   }
 
+  const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setErrorMessage(null)
+
+    if (!roomId) return
+
+    const trimmedName = joinName.trim()
+    if (!trimmedName) {
+      setErrorMessage('名前を入力してください。')
+      return
+    }
+
+    setIsJoining(true)
+    try {
+      const participantId = `${getDeviceId()}-${roomId}`
+      const joined = await apiClient.joinRoom(roomId, { userId: participantId, userName: trimmedName })
+      const resolvedId = joined.userId ?? participantId
+      const resolvedName = joined.userName ?? trimmedName
+      const roomParticipant = { id: resolvedId, name: resolvedName }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('meetpoint.participant-name', resolvedName)
+        window.localStorage.setItem('meetpoint-last-room-id', roomId)
+        writeRoomParticipant(roomId, roomParticipant)
+      }
+      setJoinedParticipant(roomParticipant)
+      setJoinName(resolvedName)
+      setRoomId(roomId)
+      setRoomIdInUrl(roomId)
+    } catch {
+      setErrorMessage('部屋に参加できませんでした。URLを確認してもう一度お試しください。')
+    } finally {
+      setIsJoining(false)
+    }
+  }
+
+  const roomParticipant = readRoomParticipant(roomId)
+  const hasJoinedRoom = Boolean(roomId && (joinedParticipant || participant || roomParticipant))
+
+  if (roomId && hasJoinedRoom) {
+    return <MapFeature apiClient={apiClient} roomInfo={roomInfo} participant={joinedParticipant ?? participant ?? roomParticipant ?? undefined} roomId={roomId} />
+  }
+
   if (roomId) {
-    return <MapFeature apiClient={apiClient} roomInfo={roomInfo} participant={participant} roomId={roomId} />
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '32px 20px',
+          background: '#edf0e8',
+          fontFamily: 'Avenir Next, "Hiragino Kaku Gothic ProN", sans-serif',
+        }}
+      >
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 620,
+            padding: '28px 24px 22px',
+            borderRadius: 20,
+            background: 'rgba(255,255,255,0.68)',
+            boxShadow: '0 8px 30px rgba(24, 43, 37, 0.08)',
+            border: '1px solid rgba(127, 138, 128, 0.25)',
+          }}
+        >
+          <div style={{ marginBottom: 20, fontWeight: 800, letterSpacing: '0.08em', color: '#22352f', fontSize: 24 }}>
+            MEETPOINT
+          </div>
+
+          <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(2rem, 4vw, 2.8rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
+            部屋に参加する
+          </h1>
+          <p style={{ margin: '0 0 24px', color: '#47615d', fontSize: 18 }}>
+            参加するには、表示名を入力してください。<br />部屋ID: <strong>{roomId}</strong>
+          </p>
+
+          <form onSubmit={handleJoinRoom} style={{ display: 'grid', gap: 18 }}>
+            <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
+              <span style={{ fontSize: 18 }}>あなたの名前</span>
+              <input
+                value={joinName}
+                onChange={(event) => setJoinName(event.target.value)}
+                placeholder="例: 佐藤さん"
+                style={{
+                  padding: '16px 14px',
+                  borderRadius: 12,
+                  border: '1px solid #c8cfc7',
+                  background: 'rgba(255,255,255,0.5)',
+                  fontSize: 28,
+                  fontWeight: 700,
+                  outline: 'none',
+                }}
+              />
+            </label>
+
+            {errorMessage && (
+              <p role="alert" style={{ margin: 0, color: '#d9553d', fontSize: 16, fontWeight: 700 }}>
+                {errorMessage}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isJoining || !joinName.trim()}
+              style={{
+                padding: '18px 18px',
+                borderRadius: 12,
+                border: 'none',
+                background: '#2a6052',
+                color: '#fff',
+                fontSize: 30,
+                fontWeight: 800,
+                cursor: isJoining || !joinName.trim() ? 'not-allowed' : 'pointer',
+                opacity: isJoining || !joinName.trim() ? 0.6 : 1,
+              }}
+            >
+              {isJoining ? '参加中...' : '部屋に参加'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -11,9 +11,16 @@ interface DestinationSettingsProps {
   isPickingOnMap: boolean
   mapPickedPoint: Destination | null
   mapPickVersion: number
+  isLocked?: boolean
   onPickingChange: (isPicking: boolean) => void
   onPreviewChange: (destination: Destination | null) => void
   onSave: (destination: DestinationInput) => Promise<boolean>
+}
+
+type GeocodeResult = {
+  lat: number
+  lng: number
+  address: string
 }
 
 function parseCoordinates(latitude: string, longitude: string): Destination | null {
@@ -27,58 +34,65 @@ function parseCoordinates(latitude: string, longitude: string): Destination | nu
   return { lat, lng }
 }
 
-interface GeocodeResult {
-  lat: number
-  lng: number
-  displayName: string
-  address: string
+function normalizePlaceText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[\s\u3000]+/g, '')
+    .replace(/[‐‑‒–—−]/g, '-')
+    .trim()
 }
 
-async function geocodePlaceName(query: string): Promise<GeocodeResult | null> {
-  const normalized = query.trim()
-  if (!normalized) return null
+async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null> {
+  const cleaned = placeName.trim()
+  if (!cleaned) return null
+
+  const normalizedQuery = normalizePlaceText(cleaned)
+  const exactOverride: Record<string, { lat: number; lng: number; address: string }> = {
+    '仙台駅': { lat: 38.2606, lng: 140.8824, address: '宮城県仙台市青葉区本町3丁目' },
+  }
+
+  const override = exactOverride[normalizedQuery]
+  if (override) return override
 
   const url = new URL('https://nominatim.openstreetmap.org/search')
-  url.searchParams.set('q', normalized)
+  url.searchParams.set('q', cleaned)
   url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '1')
+  url.searchParams.set('limit', '10')
+  url.searchParams.set('countrycodes', 'jp')
   url.searchParams.set('accept-language', 'ja')
 
   const response = await fetch(url.toString(), {
     headers: {
-      Accept: 'application/json',
       'Accept-Language': 'ja',
+      'User-Agent': 'MeetPointApp/1.0',
     },
   })
 
-  if (!response.ok) {
-    throw new Error('Geocoding failed')
-  }
+  if (!response.ok) return null
 
-  const records = (await response.json()) as Array<{
+  const candidates = (await response.json()) as Array<{
     lat?: string
     lon?: string
     display_name?: string
-    address?: Record<string, string>
+    address?: { country_code?: string }
   }>
-  const first = records[0]
-  if (!first || typeof first.lat !== 'string' || typeof first.lon !== 'string') return null
 
-  const lat = Number(first.lat)
-  const lng = Number(first.lon)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  if (!Array.isArray(candidates) || candidates.length === 0) return null
+
+  const preferred = candidates.find((candidate) => {
+    if (!candidate.lat || !candidate.lon) return false
+    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
+
+    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
+    return directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)
+  })
+
+  if (!preferred || !preferred.lat || !preferred.lon) return null
 
   return {
-    lat,
-    lng,
-    displayName: first.display_name || normalized,
-    address:
-      first.address && typeof first.address === 'object'
-        ? Object.values(first.address)
-            .filter((value) => typeof value === 'string' && value.trim())
-            .slice(0, 3)
-            .join(' / ')
-        : normalized,
+    lat: Number(preferred.lat),
+    lng: Number(preferred.lon),
+    address: preferred.display_name ?? cleaned,
   }
 }
 
@@ -91,6 +105,7 @@ export default function DestinationSettings({
   isPickingOnMap,
   mapPickedPoint,
   mapPickVersion,
+  isLocked = false,
   onPickingChange,
   onPreviewChange,
   onSave,
@@ -186,8 +201,8 @@ export default function DestinationSettings({
     const saved = await onSave({
       lat: nextCandidate.lat,
       lng: nextCandidate.lng,
-      name: landmarkName.trim() || null,
-      address: addressText.trim() || null,
+      name: landmarkName.trim() || destinationName || null,
+      address: addressText.trim() || destinationAddress || null,
     })
     if (!saved) return
 
@@ -202,9 +217,9 @@ export default function DestinationSettings({
         className={`destination-settings__map-btn${isOpen ? ' is-open' : ''}`}
         type="button"
         aria-expanded={isOpen}
-        aria-label="目的地を再設定"
-        title="目的地を再設定"
-        disabled={isSaving}
+        aria-label={isLocked ? 'オーナーのみ目的地を変更できます' : '目的地を再設定'}
+        title={isLocked ? 'オーナーのみ目的地を変更できます' : '目的地を再設定'}
+        disabled={isSaving || isLocked}
         onClick={isOpen ? closeSettings : openSettings}
       >
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -241,7 +256,7 @@ export default function DestinationSettings({
                 onClick={() => void resolvePlaceAutomatically(landmarkName)}
                 disabled={isGeocoding || !landmarkName.trim()}
               >
-                {isGeocoding ? '検索中' : '検索'}
+                {isGeocoding ? '検索中...' : '検索'}
               </button>
             </div>
           </label>
