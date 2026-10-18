@@ -1,4 +1,5 @@
 # もうつく
+<img width="1080" height="2400" alt="computer_search_kensaku" src="https://github.com/user-attachments/assets/933b9458-cb85-4886-bf8f-a90d5d9d0724" />
 ## 公開環境
 !URL入力
 ## 製品概要
@@ -45,6 +46,7 @@ URLを共有してルームに入るだけで、メンバーの現在地と「�
 ### 位置情報のジャミング
 いくら待ち合わせのためとは言え、自分の家の場所までは知られたくないですよね？
 もうつくでは集合地点から500m以上離れた段階で具体的な位置が秘匿され、さらにオプションのジャミングをかければサーバーに送られるのは集合地点から距離のみとなり、プライバシーを守りながら遅刻できます！
+<img width="1080" height="233" alt="Screenshot_20261018-122236" src="https://github.com/user-attachments/assets/cf95ea7a-38a4-446a-b9ab-906ea1e69937" />
 ## 使用技術
 ### フロントエンド
 - React 19
