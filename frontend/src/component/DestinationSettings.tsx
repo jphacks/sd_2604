@@ -23,6 +23,10 @@ type GeocodeResult = {
   address: string
 }
 
+type GeocodeCandidate = GeocodeResult & {
+  label: string
+}
+
 function parseCoordinates(latitude: string, longitude: string): Destination | null {
   if (!latitude.trim() || !longitude.trim()) return null
 
@@ -42,58 +46,120 @@ function normalizePlaceText(value: string): string {
     .trim()
 }
 
-async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null> {
+function stripPlaceSuffixes(value: string): string {
+  return normalizePlaceText(value)
+    .replace(/(?:駅|停留所|バス停|乗降場)$/g, '')
+    .replace(/(?:市|区|町|村|郡)$/g, '')
+}
+
+function isPlaceMatch(query: string, candidateText: string): boolean {
+  const normalizedQuery = normalizePlaceText(query)
+  const normalizedCandidate = normalizePlaceText(candidateText)
+
+  if (!normalizedQuery || !normalizedCandidate) return false
+
+  const queryVariants = new Set([
+    normalizedQuery,
+    stripPlaceSuffixes(normalizedQuery),
+  ])
+  const candidateVariants = new Set([
+    normalizedCandidate,
+    stripPlaceSuffixes(normalizedCandidate),
+  ])
+
+  return Array.from(queryVariants).some((queryVariant) =>
+    Array.from(candidateVariants).some(
+      (candidateVariant) =>
+        candidateVariant === queryVariant ||
+        candidateVariant.startsWith(queryVariant) ||
+        queryVariant.startsWith(candidateVariant) ||
+        candidateVariant.includes(queryVariant) ||
+        queryVariant.includes(candidateVariant),
+    ),
+  )
+}
+
+function scoreGeocodeCandidate(query: string, candidateText: string, type?: string): number {
+  const normalizedQuery = normalizePlaceText(query)
+  const normalizedCandidate = normalizePlaceText(candidateText)
+  if (!normalizedQuery || !normalizedCandidate) return 0
+
+  let score = 0
+  if (isPlaceMatch(query, candidateText)) score += 60
+  if (normalizedCandidate === normalizedQuery) score += 120
+  if (normalizedCandidate.startsWith(normalizedQuery)) score += 80
+  if (normalizedQuery.startsWith(normalizedCandidate)) score += 50
+  if (normalizedCandidate.includes(normalizedQuery)) score += 40
+  if (normalizedQuery.includes(normalizedCandidate)) score += 20
+
+  if (type === 'station' || type === 'railway') score += 60
+  if (type === 'city' || type === 'administrative') score += 20
+  if (type === 'amenity' || type === 'restaurant') score += 5
+
+  return score
+}
+
+async function geocodePlaceCandidates(placeName: string): Promise<GeocodeCandidate[]> {
   const cleaned = placeName.trim()
-  if (!cleaned) return null
+  if (!cleaned) return []
 
-  const normalizedQuery = normalizePlaceText(cleaned)
-  const exactOverride: Record<string, { lat: number; lng: number; address: string }> = {
-    '仙台駅': { lat: 38.2606, lng: 140.8824, address: '宮城県仙台市青葉区本町3丁目' },
+  const searchQueries = Array.from(
+    new Set([
+      cleaned,
+      cleaned.replace(/(?:駅|停留所|バス停|乗降場)$/g, ''),
+      cleaned.replace(/(?:駅|停留所|バス停|乗降場)$/g, '駅'),
+    ].filter(Boolean)),
+  )
+
+  for (const query of searchQueries) {
+    const url = new URL('https://nominatim.openstreetmap.org/search')
+    url.searchParams.set('q', query)
+    url.searchParams.set('format', 'jsonv2')
+    url.searchParams.set('limit', '10')
+    url.searchParams.set('countrycodes', 'jp')
+    url.searchParams.set('accept-language', 'ja')
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Accept-Language': 'ja',
+        'User-Agent': 'MeetPointApp/1.0',
+      },
+    })
+
+    if (!response.ok) continue
+
+    const candidates = (await response.json()) as Array<{
+      lat?: string
+      lon?: string
+      display_name?: string
+      address?: { country_code?: string }
+      type?: string
+    }>
+
+    if (!Array.isArray(candidates) || candidates.length === 0) continue
+
+    const matches = candidates
+      .filter((candidate) => {
+        if (!candidate.lat || !candidate.lon) return false
+        if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
+        return !!candidate.display_name
+      })
+      .map((candidate) => ({
+        lat: Number(candidate.lat),
+        lng: Number(candidate.lon),
+        address: candidate.display_name ?? cleaned,
+        label: candidate.display_name ?? cleaned,
+        score: scoreGeocodeCandidate(cleaned, candidate.display_name ?? cleaned, candidate.type),
+      }))
+      .filter((candidate) => Number.isFinite(candidate.lat) && Number.isFinite(candidate.lng))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map(({ lat, lng, address, label }) => ({ lat, lng, address, label }))
+
+    if (matches.length > 0) return matches
   }
 
-  const override = exactOverride[normalizedQuery]
-  if (override) return override
-
-  const url = new URL('https://nominatim.openstreetmap.org/search')
-  url.searchParams.set('q', cleaned)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '10')
-  url.searchParams.set('countrycodes', 'jp')
-  url.searchParams.set('accept-language', 'ja')
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept-Language': 'ja',
-      'User-Agent': 'MeetPointApp/1.0',
-    },
-  })
-
-  if (!response.ok) return null
-
-  const candidates = (await response.json()) as Array<{
-    lat?: string
-    lon?: string
-    display_name?: string
-    address?: { country_code?: string }
-  }>
-
-  if (!Array.isArray(candidates) || candidates.length === 0) return null
-
-  const preferred = candidates.find((candidate) => {
-    if (!candidate.lat || !candidate.lon) return false
-    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
-
-    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
-    return directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)
-  })
-
-  if (!preferred || !preferred.lat || !preferred.lon) return null
-
-  return {
-    lat: Number(preferred.lat),
-    lng: Number(preferred.lon),
-    address: preferred.display_name ?? cleaned,
-  }
+  return []
 }
 
 export default function DestinationSettings({
@@ -115,6 +181,7 @@ export default function DestinationSettings({
   const [longitude, setLongitude] = useState('')
   const [landmarkName, setLandmarkName] = useState('')
   const [addressText, setAddressText] = useState('')
+  const [geocodeCandidates, setGeocodeCandidates] = useState<GeocodeCandidate[]>([])
   const [isGeocoding, setIsGeocoding] = useState(false)
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
   const lastHandledPickVersion = useRef(0)
@@ -129,6 +196,15 @@ export default function DestinationSettings({
 
   const candidate = parseCoordinates(latitude, longitude)
 
+  const applyGeocodeCandidate = (nextCandidate: GeocodeCandidate) => {
+    setLandmarkName(nextCandidate.label.split(',')[0]?.trim() || landmarkName)
+    setAddressText(nextCandidate.address)
+    setLatitude(nextCandidate.lat.toFixed(6))
+    setLongitude(nextCandidate.lng.toFixed(6))
+    setGeocodeCandidates([])
+    onPreviewChange({ lat: nextCandidate.lat, lng: nextCandidate.lng })
+  }
+
   const resolvePlaceAutomatically = async (placeName: string): Promise<Destination | null> => {
     const trimmed = placeName.trim()
     if (!trimmed) {
@@ -140,18 +216,26 @@ export default function DestinationSettings({
     setGeocodeError(null)
 
     try {
-      const result = await geocodePlaceName(trimmed)
-      if (!result) {
+      const results = await geocodePlaceCandidates(trimmed)
+      if (results.length === 0) {
+        setGeocodeCandidates([])
         setGeocodeError('該当する場所が見つかりませんでした。別の表記でお試しください。')
         return null
       }
 
-      setLandmarkName(trimmed)
-      setAddressText(result.address)
-      setLatitude(result.lat.toFixed(6))
-      setLongitude(result.lng.toFixed(6))
-      onPreviewChange({ lat: result.lat, lng: result.lng })
-      return { lat: result.lat, lng: result.lng }
+      setGeocodeCandidates(results)
+
+      if (results.length === 1) {
+        const [result] = results
+        setLandmarkName(trimmed)
+        setAddressText(result.address)
+        setLatitude(result.lat.toFixed(6))
+        setLongitude(result.lng.toFixed(6))
+        onPreviewChange({ lat: result.lat, lng: result.lng })
+        return { lat: result.lat, lng: result.lng }
+      }
+
+      return null
     } catch {
       setGeocodeError('住所の自動検索に失敗しました。入力内容を確認してください。')
       return null
@@ -246,8 +330,11 @@ export default function DestinationSettings({
               <input
                 type="text"
                 value={landmarkName}
-                onChange={(event) => setLandmarkName(event.target.value)}
-                placeholder="仙台駅"
+                onChange={(event) => {
+                  setLandmarkName(event.target.value)
+                  setGeocodeCandidates([])
+                }}
+                placeholder="例: 仙台駅"
                 maxLength={60}
               />
               <button
@@ -260,6 +347,25 @@ export default function DestinationSettings({
               </button>
             </div>
           </label>
+
+          {geocodeCandidates.length > 0 && (
+            <div className="destination-settings__candidate-panel">
+              <div className="destination-settings__candidate-header">候補を選択</div>
+              <div className="destination-settings__candidate-list" role="listbox" aria-label="検索候補">
+                {geocodeCandidates.map((candidate) => (
+                  <button
+                    key={`${candidate.lat}:${candidate.lng}:${candidate.address}`}
+                    type="button"
+                    className="destination-settings__candidate-item"
+                    onClick={() => applyGeocodeCandidate(candidate)}
+                  >
+                    <span className="destination-settings__candidate-name">{candidate.label.split(',')[0]?.trim() || '候補'}</span>
+                    <span className="destination-settings__candidate-address">{candidate.address}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <label className="destination-settings__field">
             住所・詳細

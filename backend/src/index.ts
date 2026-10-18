@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
 interface CloudflareBindings {
+  DB?: D1Database;
   meetpoint_rooms?: KVNamespace;
 }
 
@@ -44,13 +45,46 @@ const membersStore: Record<string, MemberStatus> = {};
 let destination: { lat: number; lng: number } | null = null;
 let meetingTime: string | null = null;
 
+async function ensureRoomTable(env?: CloudflareBindings): Promise<void> {
+  if (!env?.DB) {
+    return;
+  }
+
+  try {
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS rooms (
+        id TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  } catch (error) {
+    console.warn('D1 schema initialization failed', error);
+  }
+}
+
 async function getRoomById(roomId: string, env?: CloudflareBindings): Promise<Room | undefined> {
-  if (env?.meetpoint_rooms) {
-    const stored = await env.meetpoint_rooms.get(`room:${roomId}`);
-    if (stored) {
-      return JSON.parse(stored) as Room;
+  if (env?.DB) {
+    try {
+      await ensureRoomTable(env);
+      const row = await env.DB.prepare('SELECT payload FROM rooms WHERE id = ?').bind(roomId).first<{ payload: string } | null>();
+      if (row?.payload) {
+        return JSON.parse(row.payload) as Room;
+      }
+    } catch (error) {
+      console.warn(`D1 read failed for room ${roomId}, falling back to KV/memory`, error);
     }
-    return undefined;
+  }
+
+  if (env?.meetpoint_rooms) {
+    try {
+      const stored = await env.meetpoint_rooms.get(`room:${roomId}`);
+      if (stored) {
+        return JSON.parse(stored) as Room;
+      }
+    } catch (error) {
+      console.warn(`KV read failed for room ${roomId}, using in-memory fallback`, error);
+    }
   }
 
   return roomsStore[roomId];
@@ -59,8 +93,24 @@ async function getRoomById(roomId: string, env?: CloudflareBindings): Promise<Ro
 async function saveRoom(room: Room, env?: CloudflareBindings): Promise<void> {
   roomsStore[room.id] = room;
 
+  if (env?.DB) {
+    try {
+      await ensureRoomTable(env);
+      await env.DB.prepare(
+        'INSERT INTO rooms (id, payload) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = CURRENT_TIMESTAMP'
+      ).bind(room.id, JSON.stringify(room)).run();
+      return;
+    } catch (error) {
+      console.warn(`D1 write failed for room ${room.id}, falling back to KV/memory`, error);
+    }
+  }
+
   if (env?.meetpoint_rooms) {
-    await env.meetpoint_rooms.put(`room:${room.id}`, JSON.stringify(room));
+    try {
+      await env.meetpoint_rooms.put(`room:${room.id}`, JSON.stringify(room));
+    } catch (error) {
+      console.warn(`KV write failed for room ${room.id}, using in-memory fallback`, error);
+    }
   }
 }
 
@@ -132,7 +182,8 @@ app.post('/api/rooms', async (c) => {
     roomsStore[roomId] = newRoom;
     await saveRoom(newRoom, c.env);
     return c.json({ success: true, roomId, room: newRoom });
-  } catch {
+  } catch (error) {
+    console.error('Room creation failed:', error);
     return c.json({ success: false, error: 'Invalid payload' }, 400);
   }
 });

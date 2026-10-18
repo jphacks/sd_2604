@@ -1,7 +1,10 @@
 .location-sharing {
-  display: grid;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 12px 18px 0;
   background: #fffefa;
 }
 

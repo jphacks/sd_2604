@@ -3,6 +3,13 @@
 	"name": "backend",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-10-17",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "meetpoint_db",
+			"database_id": "28ccd620-3c03-4b90-b3c2-7a9900833224"
+		}
+	],
 	"kv_namespaces": [
 		{
 			"binding": "meetpoint_rooms",
