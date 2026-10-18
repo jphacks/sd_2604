@@ -266,4 +266,21 @@
     top: 10px;
     right: 10px;
   }
+  .room-header__top-left {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  display: flex;
+  align-items: center;
+}
+.app-logo { display: flex; align-items: center; gap: 8px; }
+.app-logo__mark { height: 30px; width: auto; }
+.app-logo__text {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 1;
+  color: #23282B;
+}
 }
