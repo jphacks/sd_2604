@@ -60,10 +60,20 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
   const destinationLocked = Boolean(roomId) && !isOwner
   const meetingTimeLocked = Boolean(roomId) && !isOwner
 
+  const refreshMapState = async () => {
+    try {
+      const nextState = await apiClient.getMapState(roomId)
+      setMapState(nextState)
+      setConnectionError(false)
+    } catch {
+      setConnectionError(true)
+    }
+  }
+
   useEffect(() => {
     let disposed = false
 
-    const refreshMapState = async () => {
+    const runRefresh = async () => {
       try {
         const nextState = await apiClient.getMapState(roomId)
         if (!disposed) {
@@ -75,8 +85,8 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
       }
     }
 
-    void refreshMapState()
-    const intervalId = window.setInterval(() => void refreshMapState(), 5000)
+    void runRefresh()
+    const intervalId = window.setInterval(() => void runRefresh(), 2000)
 
     return () => {
       disposed = true
@@ -138,6 +148,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
         ownerId: current?.ownerId ?? null,
         members: current?.members ?? [],
       }))
+      await refreshMapState()
       return true
     } catch {
       setMeetingTimeSaveError('集合時刻を保存できませんでした。接続を確認してください。')
