@@ -1,0 +1,181 @@
+.destination-settings {
+  position: relative;
+}
+
+.destination-settings__map-btn {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgb(226 230 223 / 95%);
+  border-radius: 50%;
+  background: rgb(255 254 250 / 96%);
+  box-shadow: 0 3px 12px rgb(33 52 43 / 18%);
+  color: #237765;
+  cursor: pointer;
+  transition: transform 0.12s, background-color 0.15s;
+}
+
+.destination-settings__map-btn:hover,
+.destination-settings__map-btn.is-open {
+  background: #237765;
+  color: #fffefa;
+}
+
+.destination-settings__save,
+.destination-settings__pick,
+.destination-settings__geocode-btn {
+  min-height: 38px;
+  border: 1px solid #d9e0d9;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #263b33;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.destination-settings__panel {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 150px);
+  gap: 12px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #e2e6df;
+  border-radius: 8px;
+  background: #fffefa;
+  box-shadow: 0 12px 34px rgb(33 52 43 / 20%);
+}
+
+.destination-settings__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.destination-settings__eyebrow {
+  margin: 0 0 2px;
+  color: #738079;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.destination-settings__heading h2 {
+  margin: 0;
+  color: #22352f;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.destination-settings__close {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #e2e6df;
+  border-radius: 50%;
+  background: transparent;
+  color: #52665d;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.destination-settings__field {
+  display: grid;
+  gap: 5px;
+  color: #52665d;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.destination-settings__search-row {
+  display: flex;
+  gap: 6px;
+}
+
+.destination-settings__field input,
+.destination-settings__coordinates input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d9e0d9;
+  border-radius: 4px;
+  background: white;
+  color: #22352f;
+  font-size: 13px;
+}
+
+.destination-settings__geocode-btn {
+  flex: 0 0 auto;
+  padding: 0 12px;
+}
+
+.destination-settings__pick {
+  width: 100%;
+  padding: 0 12px;
+  text-align: center;
+}
+
+.destination-settings__pick.is-active {
+  border-color: #237765;
+  background: #e8f1ec;
+  color: #195e50;
+}
+
+.destination-settings__coordinates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.destination-settings__coordinates label {
+  display: grid;
+  gap: 4px;
+  color: #52665d;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.destination-settings__error {
+  margin: 0;
+  color: #b64231;
+  font-size: 11px;
+}
+
+.destination-settings__save {
+  width: 100%;
+  border-color: #237765;
+  background: #237765;
+  color: white;
+}
+
+.destination-settings__save:disabled {
+  border-color: #d9e0d9;
+  background: #e7ebe6;
+  color: #909b94;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .destination-settings__panel {
+    position: fixed;
+    z-index: 30;
+    top: auto;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-height: min(55dvh, 420px);
+    padding: 14px;
+  }
+}
