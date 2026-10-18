@@ -59,6 +59,13 @@ export default function RoomLayout({
         <div className="room-header__inner">
           <div className="room-header__top">
             <div className="room-header__top-left">
+              <div className="app-logo">
+                <img className="app-logo__mark" src="/logo-mark.svg" alt="" />
+                <span className="app-logo__text">Motsuku</span>
+              </div>
+            </div>
+
+            <div className="room-header__top-right">
               <button
                 type="button"
                 className={`room-id-block${copied ? ' is-copied' : ''}`}
@@ -71,9 +78,6 @@ export default function RoomLayout({
                 </span>
                 <span className="room-id-block__value">{roomId ?? '---'}</span>
               </button>
-            </div>
-
-            <div className="room-header__top-right">
               {/* ドットを左、日付を右に配置することで、右端を時間（hh:mm）と揃えます */}
               <div
                 className={`connection-status-dot${connectionError ? ' is-error' : ''}`}
