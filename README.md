@@ -1,8 +1,7 @@
 # もうつく
 <img width="516" height="140" alt="Screenshot_20261018-122236" src="https://github.com/user-attachments/assets/0eff9f5e-37a6-4998-8f3a-38f72d4f86a1" />
 
-## 公開環境
-!URL入力
+[公開URL](https://fix-default-sharing-on-load.sd2604-frontend.pages.dev)
 
 ## 製品概要
 <img width="500" height="auto" alt="Screenshot_20261018-122236" src="https://github.com/user-attachments/assets/da46d28b-b139-4ccf-bbec-172ce1c2f16e" />
