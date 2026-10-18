@@ -352,7 +352,11 @@ app.put('/api/rooms/:roomId/meeting-time', async (c) => {
   const room = await getRoomById(roomId, c.env);
   if (!room) return c.json({ success: false, message: 'Room not found' }, 404);
 
-  const body = await c.req.json<{ meetingTime: unknown }>();
+  const body = await c.req.json<{ meetingTime: unknown; userId?: string | null }>();
+
+  if (room.ownerId && body.userId !== room.ownerId) {
+    return c.json({ success: false, error: 'Only room owner can update meeting time' }, 403);
+  }
 
   if (body.meetingTime === null) {
     room.meetingTime = null;

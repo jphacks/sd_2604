@@ -117,14 +117,14 @@ export class MapApiClient {
     }
   }
 
-  async updateMeetingTime(roomId: string | null | undefined, meetingTime: string | null): Promise<string | null> {
+  async updateMeetingTime(roomId: string | null | undefined, meetingTime: string | null, userId?: string | null): Promise<string | null> {
     const endpoint = roomId
       ? `${this.baseUrl}/api/rooms/${encodeURIComponent(roomId)}/meeting-time`
       : `${this.baseUrl}/api/meeting-time`
     const response = await this.request(endpoint, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meetingTime }),
+      body: JSON.stringify({ meetingTime, userId: userId ?? null }),
     })
     if (!response.ok) throw new Error(`Meeting time update failed: ${response.status}`)
 

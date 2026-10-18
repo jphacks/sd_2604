@@ -50,8 +50,15 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
         })()
       : null
   )
-  const isOwner = !!roomId && !!currentParticipantId && !!mapState?.ownerId && mapState.ownerId === currentParticipantId
+  const persistedOwnerId = typeof window !== 'undefined' && roomId
+    ? (window.localStorage.getItem(`meetpoint.room-owner.${roomId}`) ?? '').trim() || null
+    : null
+  const isOwner = !!roomId && !!currentParticipantId && (
+    (!!mapState?.ownerId && mapState.ownerId === currentParticipantId) ||
+    persistedOwnerId === currentParticipantId
+  )
   const destinationLocked = Boolean(roomId) && !isOwner
+  const meetingTimeLocked = Boolean(roomId) && !isOwner
 
   useEffect(() => {
     let disposed = false
@@ -113,16 +120,22 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
   }
 
   const saveMeetingTime = async (nextMeetingTime: string | null) => {
+    if (!isOwner) {
+      setMeetingTimeSaveError('オーナーだけが集合時刻を変更できます。')
+      return false
+    }
+
     setIsSavingMeetingTime(true)
     setMeetingTimeSaveError(null)
 
     try {
-      const updatedMeetingTime = await apiClient.updateMeetingTime(roomId, nextMeetingTime)
+      const updatedMeetingTime = await apiClient.updateMeetingTime(roomId, nextMeetingTime, currentParticipantId ?? null)
       setMapState((current) => ({
         destination: current?.destination ?? null,
         destinationName: current?.destinationName ?? null,
         destinationAddress: current?.destinationAddress ?? null,
         meetingTime: updatedMeetingTime,
+        ownerId: current?.ownerId ?? null,
         members: current?.members ?? [],
       }))
       return true
@@ -152,6 +165,7 @@ export default function MapFeature({ apiClient, participant, roomInfo, roomId }:
           meetingTime={meetingTime}
           isSaving={isSavingMeetingTime}
           errorMessage={meetingTimeSaveError}
+          isLocked={meetingTimeLocked}
           onSave={saveMeetingTime}
         />
       }
