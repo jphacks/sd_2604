@@ -349,8 +349,6 @@ export default function App({ roomInfo, participant }: AppProps) {
           style={{
             width: '100%',
             maxWidth: 620,
-            maxHeight: 'calc(100vh - 48px)',
-            overflowY: 'auto',
             padding: '28px 24px 22px',
             borderRadius: 20,
             background: 'rgba(255,255,255,0.68)',
@@ -433,8 +431,6 @@ export default function App({ roomInfo, participant }: AppProps) {
         style={{
           width: '100%',
           maxWidth: 620,
-          maxHeight: 'calc(100vh - 48px)',
-          overflowY: 'auto',
           padding: '28px 24px 22px',
           borderRadius: 20,
           background: 'rgba(255,255,255,0.68)',
