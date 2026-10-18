@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Motsuku">
-  <rect width="512" height="512" rx="112" fill="#D2452F"/>
+  <rect width="512" height="512" rx="112" fill="#D2452F" />
   <g transform="translate(131.2 96) scale(2.5)">
-    <path d="M40 94 C36 84 14 64 14 40 A26 26 0 1 1 66 40 C66 64 44 84 40 94 Z" fill="#FDFCFA"/>
-    <path d="M40 20 L44.5 35.5 L60 40 L44.5 44.5 L40 60 L35.5 44.5 L20 40 L35.5 35.5 Z" fill="#D2452F"/>
+    <path d="M50 100 c-4 -10 -26 -30 -26 -54 a26 26 0 1 1 52 0 c0 24 -22 44 -26 54 Z" fill="#FDFCFA" />
+    <path d="M50 26 l4.5 15.5 l15.5 4.5 l-15.5 4.5 l-4.5 15.5 l-4.5 -15.5 l-15.5 -4.5 l15.5 -4.5 Z" fill="#D2452F" />
   </g>
 </svg>
