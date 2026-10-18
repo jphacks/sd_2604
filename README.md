@@ -1,8 +1,12 @@
 # もうつく
-<img width="1080" height="2400" alt="computer_search_kensaku" src="https://github.com/user-attachments/assets/933b9458-cb85-4886-bf8f-a90d5d9d0724" />
+<img width="516" height="140" alt="Screenshot_20261018-122236" src="https://github.com/user-attachments/assets/0eff9f5e-37a6-4998-8f3a-38f72d4f86a1" />
+
 ## 公開環境
 !URL入力
+
 ## 製品概要
+<img width="500" height="auto" alt="Screenshot_20261018-122236" src="https://github.com/user-attachments/assets/da46d28b-b139-4ccf-bbec-172ce1c2f16e" />
+
 ### 背景
 待ち合わせと遅刻は表裏一体
 
