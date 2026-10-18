@@ -47,12 +47,6 @@ async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null
   if (!cleaned) return null
 
   const normalizedQuery = normalizePlaceText(cleaned)
-  const exactOverride: Record<string, { lat: number; lng: number; address: string }> = {
-    '仙台駅': { lat: 38.2606, lng: 140.8824, address: '宮城県仙台市青葉区本町3丁目' },
-  }
-
-  const override = exactOverride[normalizedQuery]
-  if (override) return override
 
   const url = new URL('https://nominatim.openstreetmap.org/search')
   url.searchParams.set('q', cleaned)
@@ -247,7 +241,7 @@ export default function DestinationSettings({
                 type="text"
                 value={landmarkName}
                 onChange={(event) => setLandmarkName(event.target.value)}
-                placeholder="仙台駅"
+                placeholder="例: 仙台駅"
                 maxLength={60}
               />
               <button

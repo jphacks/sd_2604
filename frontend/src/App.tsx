@@ -4,10 +4,6 @@ import MapFeature from './component/MapFeature'
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://backend.yonu33.workers.dev').replace(/\/+$/, '')
 
-const exactPlaceOverrides: Record<string, GeocodeResult> = {
-  '仙台駅': { lat: 38.2606, lng: 140.8824, displayName: '仙台駅' },
-}
-
 type GeocodeResult = {
   lat: number
   lng: number
@@ -122,8 +118,6 @@ async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null
   if (!cleaned) return null
 
   const normalizedQuery = normalizePlaceText(cleaned)
-  const exactOverride = exactPlaceOverrides[normalizedQuery]
-  if (exactOverride) return exactOverride
 
   const url = new URL('https://nominatim.openstreetmap.org/search')
   url.searchParams.set('q', cleaned)
@@ -202,7 +196,7 @@ export default function App({ roomInfo, participant }: AppProps) {
 
     return getNextAnonymousName()
   })
-  const [placeName, setPlaceName] = useState('仙台駅')
+  const [placeName, setPlaceName] = useState('')
   const [addressText, setAddressText] = useState('')
   const [meetingTime, setMeetingTime] = useState(createInitialMeetingTime)
   const [isSearching, setIsSearching] = useState(false)
