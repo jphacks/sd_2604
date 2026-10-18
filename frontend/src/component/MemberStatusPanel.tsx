@@ -2,6 +2,13 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import { formatDistance, getStraightLineDistanceMetres } from './mapMath'
 import type { Destination, MemberStatus } from './mapTypes'
 
+function getDisplayNameWithId(member: MemberStatus): { primary: string; suffix?: string } {
+  const baseName = member.name.trim() || '参加者'
+  const idSuffix = member.id ? member.id.slice(0, 6) : ''
+  if (!idSuffix) return { primary: baseName }
+  return { primary: baseName, suffix: `#${idSuffix}` }
+}
+
 interface MemberStatusPanelProps {
   members?: MemberStatus[]
   destination?: Destination | null
@@ -159,6 +166,7 @@ export default function MemberStatusPanel({
             const arrivalStatus = getArrivalStatus(member, currentTotalDelay, meetingTime, now.getTime())
             const isExpanded = expandedMemberId === member.id
             const canAdjustThisMember = canAdjustDelay && currentUserId !== null && currentUserId !== undefined && member.id === currentUserId
+            const displayName = getDisplayNameWithId(member)
 
             const mLat = member.lat
             const mLng = member.lng
@@ -268,8 +276,21 @@ export default function MemberStatusPanel({
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
                           <strong style={{ fontSize: isSmallMobile ? '14px' : '15px', fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {member.name}
+                            {displayName.primary}
                           </strong>
+
+                          {displayName.suffix && (
+                            <span style={{
+                              fontSize: '10px',
+                              lineHeight: 1.2,
+                              color: '#64748b',
+                              opacity: 0.8,
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {displayName.suffix}
+                            </span>
+                          )}
 
                           {!isSmallMobile && (
                             <span style={{
