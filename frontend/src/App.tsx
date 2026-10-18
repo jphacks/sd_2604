@@ -227,6 +227,7 @@ export default function App({ roomInfo, participant }: AppProps) {
         return
       }
 
+      const ownerId = getDeviceId()
       const created = await apiClient.createRoom({
         title: '待ち合わせ',
         targetName: placeName.trim(),
@@ -235,7 +236,7 @@ export default function App({ roomInfo, participant }: AppProps) {
         meetingTime: meetingTime || createInitialMeetingTime(),
         destinationName: placeName.trim(),
         destinationAddress: addressText.trim() || result.displayName,
-        ownerId: `${getDeviceId()}-${Date.now()}`,
+        ownerId,
         ownerName: trimmedCreatorName,
       })
       const nextRoomId = created.roomId ?? created.room?.id
@@ -244,7 +245,7 @@ export default function App({ roomInfo, participant }: AppProps) {
         return
       }
 
-      const roomParticipant = { id: `${getDeviceId()}-${nextRoomId}`, name: trimmedCreatorName }
+      const roomParticipant = { id: ownerId, name: trimmedCreatorName }
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('meetpoint-creator-name', trimmedCreatorName)
         window.localStorage.setItem('meetpoint.participant-name', trimmedCreatorName)
@@ -275,7 +276,7 @@ export default function App({ roomInfo, participant }: AppProps) {
 
     setIsJoining(true)
     try {
-      const participantId = `${getDeviceId()}-${roomId}`
+      const participantId = getDeviceId()
       const joined = await apiClient.joinRoom(roomId, { userId: participantId, userName: trimmedName })
       const resolvedId = joined.userId ?? participantId
       const resolvedName = joined.userName ?? trimmedName

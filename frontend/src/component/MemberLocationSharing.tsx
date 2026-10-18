@@ -45,11 +45,11 @@ function getParticipantId(roomId?: string | null): string {
       }
     }
 
-    const generated = roomId ? `${getDeviceId()}-${roomId}` : `${getDeviceId()}-global`
+    const generated = getDeviceId()
     localStorage.setItem(storageKey, JSON.stringify({ id: generated }))
     return generated
   } catch {
-    return roomId ? `${getDeviceId()}-${roomId}` : `${getDeviceId()}-global`
+    return getDeviceId()
   }
 }
 
