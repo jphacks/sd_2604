@@ -42,6 +42,10 @@ function getRoomParticipantStorageKey(roomId: string): string {
   return `meetpoint.room-participant.${roomId}`
 }
 
+function getRoomOwnerStorageKey(roomId: string): string {
+  return `meetpoint.room-owner.${roomId}`
+}
+
 function readRoomParticipant(roomId: string | null | undefined): { id: string; name: string } | null {
   if (!roomId || typeof window === 'undefined') return null
 
@@ -62,6 +66,24 @@ function readRoomParticipant(roomId: string | null | undefined): { id: string; n
 function writeRoomParticipant(roomId: string, participant: { id: string; name: string }) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(getRoomParticipantStorageKey(roomId), JSON.stringify({ id: participant.id, name: participant.name }))
+}
+
+function readRoomOwnerId(roomId: string | null | undefined): string | null {
+  if (!roomId || typeof window === 'undefined') return null
+
+  const stored = window.localStorage.getItem(getRoomOwnerStorageKey(roomId))
+  return stored && stored.trim() ? stored.trim() : null
+}
+
+function writeRoomOwnerId(roomId: string, ownerId: string | null) {
+  if (typeof window === 'undefined') return
+
+  if (!ownerId || !ownerId.trim()) {
+    window.localStorage.removeItem(getRoomOwnerStorageKey(roomId))
+    return
+  }
+
+  window.localStorage.setItem(getRoomOwnerStorageKey(roomId), ownerId.trim())
 }
 
 function setRoomIdInUrl(roomId: string) {
@@ -227,6 +249,7 @@ export default function App({ roomInfo, participant }: AppProps) {
         return
       }
 
+      const ownerId = getDeviceId()
       const created = await apiClient.createRoom({
         title: '待ち合わせ',
         targetName: placeName.trim(),
@@ -235,7 +258,7 @@ export default function App({ roomInfo, participant }: AppProps) {
         meetingTime: meetingTime || createInitialMeetingTime(),
         destinationName: placeName.trim(),
         destinationAddress: addressText.trim() || result.displayName,
-        ownerId: `${getDeviceId()}-${Date.now()}`,
+        ownerId,
         ownerName: trimmedCreatorName,
       })
       const nextRoomId = created.roomId ?? created.room?.id
@@ -244,12 +267,13 @@ export default function App({ roomInfo, participant }: AppProps) {
         return
       }
 
-      const roomParticipant = { id: `${getDeviceId()}-${nextRoomId}`, name: trimmedCreatorName }
+      const roomParticipant = { id: ownerId, name: trimmedCreatorName }
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('meetpoint-creator-name', trimmedCreatorName)
         window.localStorage.setItem('meetpoint.participant-name', trimmedCreatorName)
         window.localStorage.setItem('meetpoint-last-room-id', nextRoomId)
         writeRoomParticipant(nextRoomId, roomParticipant)
+        writeRoomOwnerId(nextRoomId, ownerId)
       }
       setJoinedParticipant(roomParticipant)
       setRoomId(nextRoomId)
@@ -275,16 +299,20 @@ export default function App({ roomInfo, participant }: AppProps) {
 
     setIsJoining(true)
     try {
-      const participantId = `${getDeviceId()}-${roomId}`
+      const participantId = getDeviceId()
       const joined = await apiClient.joinRoom(roomId, { userId: participantId, userName: trimmedName })
       const resolvedId = joined.userId ?? participantId
       const resolvedName = joined.userName ?? trimmedName
       const roomParticipant = { id: resolvedId, name: resolvedName }
+      const persistedOwnerId = joined.room?.ownerId ?? readRoomOwnerId(roomId)
 
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('meetpoint.participant-name', resolvedName)
         window.localStorage.setItem('meetpoint-last-room-id', roomId)
         writeRoomParticipant(roomId, roomParticipant)
+        if (persistedOwnerId) {
+          writeRoomOwnerId(roomId, persistedOwnerId)
+        }
       }
       setJoinedParticipant(roomParticipant)
       setJoinName(resolvedName)
