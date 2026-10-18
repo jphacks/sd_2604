@@ -239,6 +239,13 @@
   background: #fffefa;
 }
 
+.room-member-status {
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
 @media (max-width: 640px) {
   .room-layout {
     display: flex;
@@ -283,6 +290,8 @@
   .room-member-status {
     flex: 1;
     min-height: 140px;
+    max-height: min(52vh, 420px);
+    overflow: auto;
   }
 
   .map-legend {

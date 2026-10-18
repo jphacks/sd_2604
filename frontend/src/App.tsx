@@ -340,7 +340,7 @@ export default function App({ roomInfo, participant }: AppProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '32px 20px',
+          padding: '24px 16px',
           background: '#edf0e8',
           fontFamily: 'Avenir Next, "Hiragino Kaku Gothic ProN", sans-serif',
         }}
@@ -349,6 +349,8 @@ export default function App({ roomInfo, participant }: AppProps) {
           style={{
             width: '100%',
             maxWidth: 620,
+            maxHeight: 'calc(100vh - 48px)',
+            overflowY: 'auto',
             padding: '28px 24px 22px',
             borderRadius: 20,
             background: 'rgba(255,255,255,0.68)',
@@ -360,7 +362,7 @@ export default function App({ roomInfo, participant }: AppProps) {
             MEETPOINT
           </div>
 
-          <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(2rem, 4vw, 2.8rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
+          <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
             部屋に参加する
           </h1>
           <p style={{ margin: '0 0 24px', color: '#47615d', fontSize: 18 }}>
@@ -375,11 +377,11 @@ export default function App({ roomInfo, participant }: AppProps) {
                 onChange={(event) => setJoinName(event.target.value)}
                 placeholder="例: 佐藤さん"
                 style={{
-                  padding: '16px 14px',
+                  padding: '14px 12px',
                   borderRadius: 12,
                   border: '1px solid #c8cfc7',
                   background: 'rgba(255,255,255,0.5)',
-                  fontSize: 28,
+                  fontSize: 'clamp(1rem, 3vw, 1.6rem)',
                   fontWeight: 700,
                   outline: 'none',
                 }}
@@ -396,12 +398,12 @@ export default function App({ roomInfo, participant }: AppProps) {
               type="submit"
               disabled={isJoining || !joinName.trim()}
               style={{
-                padding: '18px 18px',
+                padding: '14px 18px',
                 borderRadius: 12,
                 border: 'none',
                 background: '#2a6052',
                 color: '#fff',
-                fontSize: 30,
+                fontSize: 'clamp(1rem, 3vw, 1.6rem)',
                 fontWeight: 800,
                 cursor: isJoining || !joinName.trim() ? 'not-allowed' : 'pointer',
                 opacity: isJoining || !joinName.trim() ? 0.6 : 1,
@@ -431,6 +433,8 @@ export default function App({ roomInfo, participant }: AppProps) {
         style={{
           width: '100%',
           maxWidth: 620,
+          maxHeight: 'calc(100vh - 48px)',
+          overflowY: 'auto',
           padding: '28px 24px 22px',
           borderRadius: 20,
           background: 'rgba(255,255,255,0.68)',
@@ -442,7 +446,7 @@ export default function App({ roomInfo, participant }: AppProps) {
           MEETPOINT
         </div>
 
-        <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(2.2rem, 4vw, 3.4rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
+        <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(1.9rem, 5vw, 3rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
           新しい部屋を作る
         </h1>
 
@@ -454,11 +458,11 @@ export default function App({ roomInfo, participant }: AppProps) {
               onChange={(event) => setCreatorName(event.target.value)}
               placeholder="例: 田中さん"
               style={{
-                padding: '16px 14px',
+                padding: '14px 12px',
                 borderRadius: 12,
                 border: '1px solid #c8cfc7',
                 background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
+                fontSize: 'clamp(1rem, 3vw, 1.6rem)',
                 fontWeight: 700,
                 outline: 'none',
               }}
@@ -472,11 +476,11 @@ export default function App({ roomInfo, participant }: AppProps) {
               onChange={(event) => setPlaceName(event.target.value)}
               placeholder="会津若松駅"
               style={{
-                padding: '16px 14px',
+                padding: '14px 12px',
                 borderRadius: 12,
                 border: '1px solid #c8cfc7',
                 background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
+                fontSize: 'clamp(1rem, 3vw, 1.6rem)',
                 fontWeight: 700,
                 outline: 'none',
               }}
@@ -488,12 +492,12 @@ export default function App({ roomInfo, participant }: AppProps) {
             onClick={handleSearchByPlaceName}
             disabled={isSearching || !placeName.trim()}
             style={{
-              padding: '14px 18px',
+              padding: '12px 16px',
               borderRadius: 12,
               border: '1px solid #dbe1d7',
               background: '#dfe7e1',
               color: '#22352f',
-              fontSize: 18,
+              fontSize: 'clamp(0.95rem, 2.8vw, 1.2rem)',
               fontWeight: 700,
               cursor: isSearching || !placeName.trim() ? 'not-allowed' : 'pointer',
               opacity: isSearching || !placeName.trim() ? 0.6 : 1,
@@ -509,11 +513,11 @@ export default function App({ roomInfo, participant }: AppProps) {
               onChange={(event) => setAddressText(event.target.value)}
               placeholder="福島県会津若松市駅前町1-2-3"
               style={{
-                padding: '16px 14px',
+                padding: '14px 12px',
                 borderRadius: 12,
                 border: '1px solid #c8cfc7',
                 background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
+                fontSize: 'clamp(1rem, 3vw, 1.6rem)',
                 fontWeight: 700,
                 outline: 'none',
               }}
@@ -527,11 +531,11 @@ export default function App({ roomInfo, participant }: AppProps) {
               value={meetingTime}
               onChange={(event) => setMeetingTime(event.target.value)}
               style={{
-                padding: '16px 14px',
+                padding: '14px 12px',
                 borderRadius: 12,
                 border: '1px solid #c8cfc7',
                 background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
+                fontSize: 'clamp(1rem, 3vw, 1.6rem)',
                 fontWeight: 700,
                 outline: 'none',
               }}
@@ -553,12 +557,12 @@ export default function App({ roomInfo, participant }: AppProps) {
             disabled={isSubmitting || !creatorName.trim() || !placeName.trim()}
             style={{
               marginTop: 8,
-              padding: '18px 18px',
+              padding: '14px 18px',
               borderRadius: 12,
               border: 'none',
               background: '#2a6052',
               color: '#fff',
-              fontSize: 30,
+              fontSize: 'clamp(1rem, 3vw, 1.6rem)',
               fontWeight: 800,
               cursor: isSubmitting || !creatorName.trim() || !placeName.trim() ? 'not-allowed' : 'pointer',
               opacity: isSubmitting || !creatorName.trim() || !placeName.trim() ? 0.6 : 1,
