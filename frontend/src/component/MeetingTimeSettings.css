@@ -1,5 +1,6 @@
 .meeting-time-settings {
   position: relative;
+  left: -50%;
   width: fit-content;
 }
 
