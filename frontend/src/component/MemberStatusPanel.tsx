@@ -1,10 +1,10 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { formatDistance, getStraightLineDistanceMetres } from './mapMath'
 import type { Destination, MemberStatus } from './mapTypes'
-import { getDisplayNameWithId } from './memberDisplayUtils'
 
-const getMemberDisplayName = (member: MemberStatus, members: MemberStatus[]): { primary: string; suffix?: string } =>
-  getDisplayNameWithId(member, members)
+function getDisplayNameBase(member: MemberStatus): string {
+  return member.name.trim() || '参加者'
+}
 
 interface MemberStatusPanelProps {
   members?: MemberStatus[]
@@ -163,7 +163,7 @@ export default function MemberStatusPanel({
             const arrivalStatus = getArrivalStatus(member, currentTotalDelay, meetingTime, now.getTime())
             const isExpanded = expandedMemberId === member.id
             const canAdjustThisMember = canAdjustDelay && currentUserId !== null && currentUserId !== undefined && member.id === currentUserId
-            const displayName = getMemberDisplayName(member, members)
+            const displayName = { primary: getDisplayNameBase(member) }
 
             const mLat = member.lat
             const mLng = member.lng
@@ -275,19 +275,6 @@ export default function MemberStatusPanel({
                           <strong style={{ fontSize: isSmallMobile ? '14px' : '15px', fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {displayName.primary}
                           </strong>
-
-                          {displayName.suffix && (
-                            <span style={{
-                              fontSize: '10px',
-                              lineHeight: 1.2,
-                              color: '#64748b',
-                              opacity: 0.8,
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
-                            }}>
-                              {displayName.suffix}
-                            </span>
-                          )}
 
                           {!isSmallMobile && (
                             <span style={{
