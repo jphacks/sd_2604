@@ -9,6 +9,13 @@ export interface DestinationInput extends Destination {
 }
 
 export interface MemberStatus {
+  arrivalAt?: string | null   // 
+到着予定時刻（
+ISO 8601
+。例
+ '2026-10
+17T14:25:00.000Z'
+）
   id: string
   name: string
   delayMinutes: number
@@ -25,6 +32,7 @@ export interface MemberStatus {
 }
 
 export interface LocationSyncPayload {
+  arrivalAt: string | null
   userId: string
   userName: string
   userLat: number
