@@ -109,22 +109,25 @@ input {
 
 .entry-field__input {
   width: 100%;
+  min-width: 0;
   padding: 16px 14px;
   border-radius: 12px;
   border: 1px solid #c8cfc7;
   background: rgba(255, 255, 255, 0.5);
-  font-size: 28px;
+  font-size: clamp(16px, 5vw, 24px);
   font-weight: 700;
   outline: none;
 }
 
 .entry-search-btn {
+  width: 100%;
+  min-width: 0;
   padding: 14px 18px;
   border-radius: 12px;
   border: 1px solid #dbe1d7;
   background: #dfe7e1;
   color: #22352f;
-  font-size: 18px;
+  font-size: clamp(15px, 4vw, 18px);
   font-weight: 700;
   cursor: pointer;
 }
