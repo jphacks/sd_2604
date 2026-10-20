@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import './App.css'
 import { MapApiClient } from './component/MapApiClient'
 import MapFeature from './component/MapFeature'
+import { getDeviceId, readRoomOwnerId, readRoomParticipant, writeRoomOwnerId, writeRoomParticipant } from './utils/storage'
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://backend.yonu33.workers.dev').replace(/\/+$/, '')
 
@@ -18,73 +19,6 @@ type GeocodeResult = {
 function getRoomIdFromUrl(): string | null {
   if (typeof window === 'undefined') return null
   return new URLSearchParams(window.location.search).get('room')
-}
-
-function getDeviceId(): string {
-  if (typeof window === 'undefined') return 'unknown-device'
-
-  const existing = window.localStorage.getItem('meetpoint.device-id')
-  if (existing && existing.trim()) return existing
-
-  const fingerprint = [
-    window.navigator.userAgent,
-    window.navigator.language,
-    window.screen.width,
-    window.screen.height,
-    window.screen.colorDepth,
-  ].join('|')
-
-  const next = btoa(fingerprint).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32) || `device-${Date.now()}`
-  window.localStorage.setItem('meetpoint.device-id', next)
-  return next
-}
-
-function getRoomParticipantStorageKey(roomId: string): string {
-  return `meetpoint.room-participant.${roomId}`
-}
-
-function getRoomOwnerStorageKey(roomId: string): string {
-  return `meetpoint.room-owner.${roomId}`
-}
-
-function readRoomParticipant(roomId: string | null | undefined): { id: string; name: string } | null {
-  if (!roomId || typeof window === 'undefined') return null
-
-  try {
-    const stored = window.localStorage.getItem(getRoomParticipantStorageKey(roomId))
-    if (!stored) return null
-    const parsed = JSON.parse(stored) as { id?: string; name?: string }
-    if (typeof parsed.id === 'string' && parsed.id.trim() && typeof parsed.name === 'string' && parsed.name.trim()) {
-      return { id: parsed.id, name: parsed.name.trim() }
-    }
-  } catch {
-    // ignore malformed data
-  }
-
-  return null
-}
-
-function writeRoomParticipant(roomId: string, participant: { id: string; name: string }) {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(getRoomParticipantStorageKey(roomId), JSON.stringify({ id: participant.id, name: participant.name }))
-}
-
-function readRoomOwnerId(roomId: string | null | undefined): string | null {
-  if (!roomId || typeof window === 'undefined') return null
-
-  const stored = window.localStorage.getItem(getRoomOwnerStorageKey(roomId))
-  return stored && stored.trim() ? stored.trim() : null
-}
-
-function writeRoomOwnerId(roomId: string, ownerId: string | null) {
-  if (typeof window === 'undefined') return
-
-  if (!ownerId || !ownerId.trim()) {
-    window.localStorage.removeItem(getRoomOwnerStorageKey(roomId))
-    return
-  }
-
-  window.localStorage.setItem(getRoomOwnerStorageKey(roomId), ownerId.trim())
 }
 
 function setRoomIdInUrl(roomId: string) {
