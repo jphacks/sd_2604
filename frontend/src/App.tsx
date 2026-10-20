@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import './App.css'
 import { MapApiClient } from './component/MapApiClient'
 import MapFeature from './component/MapFeature'
 
@@ -334,78 +335,36 @@ export default function App({ roomInfo, participant }: AppProps) {
 
   if (roomId) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '32px 20px',
-          background: '#edf0e8',
-          fontFamily: 'Avenir Next, "Hiragino Kaku Gothic ProN", sans-serif',
-        }}
-      >
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 620,
-            padding: '28px 24px 22px',
-            borderRadius: 20,
-            background: 'rgba(255,255,255,0.68)',
-            boxShadow: '0 8px 30px rgba(24, 43, 37, 0.08)',
-            border: '1px solid rgba(127, 138, 128, 0.25)',
-          }}
-        >
-          <div style={{ marginBottom: 20, fontWeight: 800, letterSpacing: '0.08em', color: '#22352f', fontSize: 24 }}>
-            MEETPOINT
-          </div>
+      <div className="entry-page">
+        <div className="entry-card">
+          <div className="entry-brand">MEETPOINT</div>
 
-          <h1 style={{ margin: '0 0 12px', fontSize: 'clamp(2rem, 4vw, 2.8rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
-            部屋に参加する
-          </h1>
-          <p style={{ margin: '0 0 24px', color: '#47615d', fontSize: 18 }}>
+          <h1 className="entry-title entry-title--join">部屋に参加する</h1>
+          <p className="entry-lead">
             参加するには、表示名を入力してください。<br />部屋ID: <strong>{roomId}</strong>
           </p>
 
-          <form onSubmit={handleJoinRoom} style={{ display: 'grid', gap: 18 }}>
-            <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
-              <span style={{ fontSize: 18 }}>あなたの名前</span>
+          <form className="entry-form" onSubmit={handleJoinRoom}>
+            <label className="entry-field">
+              <span className="entry-field__label">あなたの名前</span>
               <input
+                className="entry-field__input"
                 value={joinName}
                 onChange={(event) => setJoinName(event.target.value)}
                 placeholder="例: 佐藤さん"
-                style={{
-                  padding: '16px 14px',
-                  borderRadius: 12,
-                  border: '1px solid #c8cfc7',
-                  background: 'rgba(255,255,255,0.5)',
-                  fontSize: 28,
-                  fontWeight: 700,
-                  outline: 'none',
-                }}
               />
             </label>
 
             {errorMessage && (
-              <p role="alert" style={{ margin: 0, color: '#d9553d', fontSize: 16, fontWeight: 700 }}>
+              <p className="entry-error" role="alert">
                 {errorMessage}
               </p>
             )}
 
             <button
+              className="entry-submit-btn"
               type="submit"
               disabled={isJoining || !joinName.trim()}
-              style={{
-                padding: '18px 18px',
-                borderRadius: 12,
-                border: 'none',
-                background: '#2a6052',
-                color: '#fff',
-                fontSize: 30,
-                fontWeight: 800,
-                cursor: isJoining || !joinName.trim() ? 'not-allowed' : 'pointer',
-                opacity: isJoining || !joinName.trim() ? 0.6 : 1,
-              }}
             >
               {isJoining ? '参加中...' : '部屋に参加'}
             </button>
@@ -416,153 +375,76 @@ export default function App({ roomInfo, participant }: AppProps) {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '32px 20px',
-        background: '#edf0e8',
-        fontFamily: 'Avenir Next, "Hiragino Kaku Gothic ProN", sans-serif',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 620,
-          padding: '28px 24px 22px',
-          borderRadius: 20,
-          background: 'rgba(255,255,255,0.68)',
-          boxShadow: '0 8px 30px rgba(24, 43, 37, 0.08)',
-          border: '1px solid rgba(127, 138, 128, 0.25)',
-        }}
-      >
-        <div style={{ marginBottom: 20, fontWeight: 800, letterSpacing: '0.08em', color: '#22352f', fontSize: 24 }}>
-          MEETPOINT
-        </div>
+    <div className="entry-page">
+      <div className="entry-card">
+        <div className="entry-brand">MEETPOINT</div>
 
-        <h1 style={{ margin: '0 0 24px', fontSize: 'clamp(2.2rem, 4vw, 3.4rem)', lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.06em' }}>
-          新しい部屋を作る
-        </h1>
+        <h1 className="entry-title entry-title--create">新しい部屋を作る</h1>
 
-        <form onSubmit={handleCreateRoom} style={{ display: 'grid', gap: 18 }}>
-          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
-            <span style={{ fontSize: 18 }}>作成者の名前</span>
+        <form className="entry-form" onSubmit={handleCreateRoom}>
+          <label className="entry-field">
+            <span className="entry-field__label">作成者の名前</span>
             <input
+              className="entry-field__input"
               value={creatorName}
               onChange={(event) => setCreatorName(event.target.value)}
               placeholder="例: 田中さん"
-              style={{
-                padding: '16px 14px',
-                borderRadius: 12,
-                border: '1px solid #c8cfc7',
-                background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
-                fontWeight: 700,
-                outline: 'none',
-              }}
             />
           </label>
 
-          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
-            <span style={{ fontSize: 18 }}>場所名</span>
+          <label className="entry-field">
+            <span className="entry-field__label">場所名</span>
             <input
+              className="entry-field__input"
               value={placeName}
               onChange={(event) => setPlaceName(event.target.value)}
               placeholder="会津若松駅"
-              style={{
-                padding: '16px 14px',
-                borderRadius: 12,
-                border: '1px solid #c8cfc7',
-                background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
-                fontWeight: 700,
-                outline: 'none',
-              }}
             />
           </label>
 
           <button
+            className="entry-search-btn"
             type="button"
             onClick={handleSearchByPlaceName}
             disabled={isSearching || !placeName.trim()}
-            style={{
-              padding: '14px 18px',
-              borderRadius: 12,
-              border: '1px solid #dbe1d7',
-              background: '#dfe7e1',
-              color: '#22352f',
-              fontSize: 18,
-              fontWeight: 700,
-              cursor: isSearching || !placeName.trim() ? 'not-allowed' : 'pointer',
-              opacity: isSearching || !placeName.trim() ? 0.6 : 1,
-            }}
           >
             {isSearching ? '検索中...' : '住所を自動検索'}
           </button>
 
-          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
-            <span style={{ fontSize: 18 }}>住所・詳細</span>
+          <label className="entry-field">
+            <span className="entry-field__label">住所・詳細</span>
             <input
+              className="entry-field__input"
               value={addressText}
               onChange={(event) => setAddressText(event.target.value)}
               placeholder="福島県会津若松市駅前町1-2-3"
-              style={{
-                padding: '16px 14px',
-                borderRadius: 12,
-                border: '1px solid #c8cfc7',
-                background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
-                fontWeight: 700,
-                outline: 'none',
-              }}
             />
           </label>
 
-          <label style={{ display: 'grid', gap: 8, fontWeight: 600, color: '#22352f' }}>
-            <span style={{ fontSize: 18 }}>集合日時</span>
+          <label className="entry-field">
+            <span className="entry-field__label">集合日時</span>
             <input
+              className="entry-field__input"
               type="datetime-local"
               value={meetingTime}
               onChange={(event) => setMeetingTime(event.target.value)}
-              style={{
-                padding: '16px 14px',
-                borderRadius: 12,
-                border: '1px solid #c8cfc7',
-                background: 'rgba(255,255,255,0.5)',
-                fontSize: 28,
-                fontWeight: 700,
-                outline: 'none',
-              }}
             />
           </label>
 
-          <p style={{ margin: 0, color: '#47615d', fontSize: 18, lineHeight: 1.6 }}>
+          <p className="entry-note">
             作成者の名前と集合場所、集合時刻を入力して部屋を作成してください。
           </p>
 
           {errorMessage && (
-            <p role="alert" style={{ margin: 0, color: '#d9553d', fontSize: 16, fontWeight: 700 }}>
+            <p className="entry-error" role="alert">
               {errorMessage}
             </p>
           )}
 
           <button
+            className="entry-submit-btn entry-submit-btn--create"
             type="submit"
             disabled={isSubmitting || !creatorName.trim() || !placeName.trim()}
-            style={{
-              marginTop: 8,
-              padding: '18px 18px',
-              borderRadius: 12,
-              border: 'none',
-              background: '#2a6052',
-              color: '#fff',
-              fontSize: 30,
-              fontWeight: 800,
-              cursor: isSubmitting || !creatorName.trim() || !placeName.trim() ? 'not-allowed' : 'pointer',
-              opacity: isSubmitting || !creatorName.trim() || !placeName.trim() ? 0.6 : 1,
-            }}
           >
             {isSubmitting ? '作成中...' : '新しい部屋を作る'}
           </button>
