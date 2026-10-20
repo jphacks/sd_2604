@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import type { Destination, DestinationInput } from '../types/index'
 import './DestinationSettings.css'
-import type { Destination, DestinationInput } from './mapTypes'
 
 interface DestinationSettingsProps {
   destination: Destination | null

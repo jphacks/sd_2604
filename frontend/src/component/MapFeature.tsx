@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import '../App.css'
+import type { Destination, DestinationInput, MapState } from '../types/index'
 import DestinationMap from './DestinationMap'
 import DestinationSettings from './DestinationSettings'
 import type { MapApiClient } from './MapApiClient'
@@ -7,7 +8,6 @@ import MeetingTimeSettings from './MeetingTimeSettings'
 import MemberLocationSharing from './MemberLocationSharing'
 import MemberStatusPanel from './MemberStatusPanel'
 import RoomLayout from './RoomLayout'
-import type { Destination, DestinationInput, MapState } from './mapTypes'
 
 interface MapFeatureProps {
   apiClient: MapApiClient

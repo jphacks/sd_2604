@@ -4,8 +4,8 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import { useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import Map, { Layer, Marker, NavigationControl, Source } from 'react-map-gl/maplibre'
+import type { Destination, MapState, MemberStatus } from '../types/index'
 import './DestinationMap.css'
-import type { Destination, MapState, MemberStatus } from './mapTypes'
 
 setWorkerUrl(mapLibreWorkerUrl)
 

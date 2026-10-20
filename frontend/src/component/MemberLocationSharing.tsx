@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Destination } from '../types/index'
 import type { MapApiClient } from './MapApiClient'
-import type { Destination } from './mapTypes'
 import { MemberLocationService } from './MemberLocationService'
 import './MemberLocationSharing.css'
 
