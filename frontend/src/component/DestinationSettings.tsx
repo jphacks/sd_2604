@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Destination, DestinationInput } from '../types/index'
+import { geocodePlaceName } from '../utils/geocoding'
 import './DestinationSettings.css'
 
 interface DestinationSettingsProps {
@@ -17,12 +18,6 @@ interface DestinationSettingsProps {
   onSave: (destination: DestinationInput) => Promise<boolean>
 }
 
-type GeocodeResult = {
-  lat: number
-  lng: number
-  address: string
-}
-
 function parseCoordinates(latitude: string, longitude: string): Destination | null {
   if (!latitude.trim() || !longitude.trim()) return null
 
@@ -32,68 +27,6 @@ function parseCoordinates(latitude: string, longitude: string): Destination | nu
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
 
   return { lat, lng }
-}
-
-function normalizePlaceText(value: string): string {
-  return value
-    .normalize('NFKC')
-    .replace(/[\s\u3000]+/g, '')
-    .replace(/[‐‑‒–—−]/g, '-')
-    .trim()
-}
-
-async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null> {
-  const cleaned = placeName.trim()
-  if (!cleaned) return null
-
-  const normalizedQuery = normalizePlaceText(cleaned)
-  const exactOverride: Record<string, { lat: number; lng: number; address: string }> = {
-    '仙台駅': { lat: 38.2606, lng: 140.8824, address: '宮城県仙台市青葉区本町3丁目' },
-  }
-
-  const override = exactOverride[normalizedQuery]
-  if (override) return override
-
-  const url = new URL('https://nominatim.openstreetmap.org/search')
-  url.searchParams.set('q', cleaned)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '10')
-  url.searchParams.set('countrycodes', 'jp')
-  url.searchParams.set('accept-language', 'ja')
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept-Language': 'ja',
-      'User-Agent': 'MeetPointApp/1.0',
-    },
-  })
-
-  if (!response.ok) return null
-
-  const candidates = (await response.json()) as Array<{
-    lat?: string
-    lon?: string
-    display_name?: string
-    address?: { country_code?: string }
-  }>
-
-  if (!Array.isArray(candidates) || candidates.length === 0) return null
-
-  const preferred = candidates.find((candidate) => {
-    if (!candidate.lat || !candidate.lon) return false
-    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
-
-    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
-    return directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)
-  })
-
-  if (!preferred || !preferred.lat || !preferred.lon) return null
-
-  return {
-    lat: Number(preferred.lat),
-    lng: Number(preferred.lon),
-    address: preferred.display_name ?? cleaned,
-  }
 }
 
 export default function DestinationSettings({

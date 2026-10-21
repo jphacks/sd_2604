@@ -2,19 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react'
 import './App.css'
 import { MapApiClient } from './component/MapApiClient'
 import MapFeature from './component/MapFeature'
+import { geocodePlaceName } from './utils/geocoding'
 import { getDeviceId, readRoomOwnerId, readRoomParticipant, writeRoomOwnerId, writeRoomParticipant } from './utils/storage'
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://backend.yonu33.workers.dev').replace(/\/+$/, '')
-
-const exactPlaceOverrides: Record<string, GeocodeResult> = {
-  '仙台駅': { lat: 38.2606, lng: 140.8824, displayName: '仙台駅' },
-}
-
-type GeocodeResult = {
-  lat: number
-  lng: number
-  displayName: string
-}
 
 function getRoomIdFromUrl(): string | null {
   if (typeof window === 'undefined') return null
@@ -41,62 +32,6 @@ function createInitialMeetingTime(): string {
   date.setHours(date.getHours() + 1)
   date.setMinutes(0, 0, 0)
   return date.toISOString().slice(0, 16)
-}
-
-async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null> {
-  const cleaned = placeName.trim()
-  if (!cleaned) return null
-
-  const normalizedQuery = normalizePlaceText(cleaned)
-  const exactOverride = exactPlaceOverrides[normalizedQuery]
-  if (exactOverride) return exactOverride
-
-  const url = new URL('https://nominatim.openstreetmap.org/search')
-  url.searchParams.set('q', cleaned)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '10')
-  url.searchParams.set('countrycodes', 'jp')
-  url.searchParams.set('accept-language', 'ja')
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept-Language': 'ja',
-      'User-Agent': 'MeetPointApp/1.0',
-    },
-  })
-
-  if (!response.ok) return null
-
-  const candidates = (await response.json()) as Array<{
-    lat?: string
-    lon?: string
-    name?: string
-    display_name?: string
-    address?: { country_code?: string }
-  }>
-
-  if (!Array.isArray(candidates) || candidates.length === 0) return null
-
-  const preferred = candidates.find((candidate) => {
-    if (!candidate.lat || !candidate.lon) return false
-    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
-
-    const directName = normalizePlaceText(candidate.name ?? '')
-    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
-
-    return (
-      (directName && (directName === normalizedQuery || directName.startsWith(normalizedQuery))) ||
-      (directDisplayName && (directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)))
-    )
-  })
-
-  if (!preferred || !preferred.lat || !preferred.lon) return null
-
-  return {
-    lat: Number(preferred.lat),
-    lng: Number(preferred.lon),
-    displayName: preferred.display_name ?? cleaned,
-  }
 }
 
 interface AppProps {
