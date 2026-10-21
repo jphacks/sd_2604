@@ -6,7 +6,7 @@ import type { MapRef } from 'react-map-gl/maplibre'
 import Map, { Layer, Marker, NavigationControl, Source } from 'react-map-gl/maplibre'
 import type { Destination, MapState, MemberStatus } from '../types/index'
 import { formatBearing, formatDistance, getStraightLineDistanceMetres } from '../utils/mapMath'
-import './DestinationMap.css'
+import styles from './DestinationMap.module.css'
 
 setWorkerUrl(mapLibreWorkerUrl)
 
@@ -90,13 +90,8 @@ export default function DestinationMap({
     if (point) onPickDestination({ lat: point.lat, lng: point.lng })
   }
 
-  // NOTE: previously the component returned early when there was no destination and not picking.
-  // That prevented the Map component from rendering at all. To ensure the map tiles and controls
-  // are visible even before a destination is set, we always render the Map and show the empty
-  // placeholder as an overlay when appropriate.
-
   return (
-    <div className="destination-map">
+    <div className={styles['destination-map']}>
       <Map
         ref={mapRef}
         key={`${state?.destination?.lat ?? 'none'},${state?.destination?.lng ?? 'none'}:${viewRevision}`}
@@ -133,21 +128,26 @@ export default function DestinationMap({
       {destination && (
         <Marker longitude={destination.lng} latitude={destination.lat} anchor="bottom">
           <div className={`map-marker map-marker--destination${isPickingOnMap ? ' map-marker--transparent' : ''}`} aria-label="目的地">
-            <span className="map-marker__label">目的地</span>
-            <span className="map-marker__pin" />
+            <span className={styles['map-marker__label']}>目的地</span>
+            <span className={styles['map-marker__pin']} />
           </div>
         </Marker>
       )}
       {visibleMembers.map((member) => (
         <Marker key={member.id} longitude={member.lng} latitude={member.lat} anchor="bottom">
           <div
-            className={`map-marker map-marker--member${member.locationJammed ? ' map-marker--jammed' : ''}${isPickingOnMap ? ' map-marker--transparent' : ''}`}
+            className={[
+              styles['map-marker'],
+              styles['map-marker--member'],
+              member.locationJammed && styles['map-marker--jammed'],
+              isPickingOnMap && styles['map-marker--transparent'],
+            ].filter(Boolean).join(' ')}
             aria-label={member.locationJammed
               ? `${member.name}のおおよその位置${formatBearing(member.bearingDegrees) ? `、${formatBearing(member.bearingDegrees)}方向` : ''}${member.etaMinutes === null || member.etaMinutes === undefined ? '' : `、到着目安${member.etaMinutes}分`}`
               : `${member.name}の現在地${destination ? `、目的地まで${formatDistance(getStraightLineDistanceMetres(member, destination))}` : ''}${member.etaMinutes === null || member.etaMinutes === undefined ? '' : `、到着目安${member.etaMinutes}分`}`}
             title={member.name}
           >
-            <span className="map-marker__member-label">
+            <span className={styles['map-marker__member-label']}>
               <strong>{member.name}</strong>
               {member.locationJammed ? (
                 <span>
@@ -165,7 +165,7 @@ export default function DestinationMap({
                 </span>
               )}
             </span>
-            <span className="map-marker__avatar" aria-hidden="true">
+            <span className={styles['map-marker__avatar']} aria-hidden="true">
               {member.name.slice(0, 1)}
             </span>
           </div>
@@ -173,12 +173,10 @@ export default function DestinationMap({
       ))}
       <NavigationControl position="bottom-right" />
       </Map>
-
-      {/* Show the empty placeholder overlay on top of the Map when there's no destination and not picking. */}
       {!destination && !isPickingOnMap && (
-        <div className="map-empty" role="status">
-          <span className="map-empty__mark" aria-hidden="true">+</span>
-          <p className="map-empty__eyebrow">MAP NOT READY</p>
+        <div className={styles['map-empty']} role="status">
+          <span className={styles['map-empty__mark']} aria-hidden="true">+</span>
+          <p className={styles['map-empty__eyebrow']}>MAP NOT READY</p>
           <h2>目的地を待っています</h2>
           <p>目的地を設定すると、ここに集合場所の地図が表示されます。</p>
         </div>
@@ -186,7 +184,7 @@ export default function DestinationMap({
 
       {isPickingOnMap && (
         <button
-          className="destination-map__pick-layer"
+          className={styles['destination-map__pick-layer']}
           type="button"
           aria-label="地図上をクリックして目的地を選択"
           onMouseDown={handlePickMouseDown}
