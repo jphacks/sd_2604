@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { getDeviceId, getStoredParticipantName, readRoomOwnerId, writeRoomOwnerId, writeRoomParticipant } from '../utils/storage'
+import styles from './EntryPage.module.css'
 import type { MapApiClient } from './MapApiClient'
 
 interface JoinRoomPageProps {
@@ -50,20 +51,20 @@ export default function JoinRoomPage({ roomId, apiClient, onJoinSuccess }: JoinR
   }
 
   return (
-    <div className="entry-page">
-      <div className="entry-card">
-        <div className="entry-brand">MEETPOINT</div>
+    <div className={styles['entry-page']}>
+      <div className={styles['entry-card']}>
+        <div className={styles['entry-brand']}>MEETPOINT</div>
 
-        <h1 className="entry-title entry-title--join">部屋に参加する</h1>
-        <p className="entry-lead">
+        <h1 className={`${styles['entry-title']} ${styles['entry-title--join']}`}>部屋に参加する</h1>
+        <p className={styles['entry-lead']}>
           参加するには、表示名を入力してください。<br />部屋ID: <strong>{roomId}</strong>
         </p>
 
-        <form className="entry-form" onSubmit={handleJoinRoom}>
-          <label className="entry-field">
-            <span className="entry-field__label">あなたの名前</span>
+        <form className={styles['entry-form']} onSubmit={handleJoinRoom}>
+          <label className={styles['entry-field']}>
+            <span className={styles['entry-field__label']}>あなたの名前</span>
             <input
-              className="entry-field__input"
+              className={styles['entry-field__input']}
               value={joinName}
               onChange={(event) => setJoinName(event.target.value)}
               placeholder="例: 佐藤さん"
@@ -71,11 +72,11 @@ export default function JoinRoomPage({ roomId, apiClient, onJoinSuccess }: JoinR
           </label>
 
           {errorMessage && (
-            <p className="entry-error" role="alert">{errorMessage}</p>
+            <p className={styles['entry-error']} role="alert">{errorMessage}</p>
           )}
 
           <button
-            className="entry-submit-btn"
+            className={styles['entry-submit-btn']}
             type="submit"
             disabled={isJoining || !joinName.trim()}
           >
