@@ -3,7 +3,7 @@ import type { Destination } from '../types/index'
 import { getDeviceId, getStoredParticipantName, writeRoomParticipant } from '../utils/storage'
 import type { MapApiClient } from './MapApiClient'
 import { MemberLocationService } from './MemberLocationService'
-import './MemberLocationSharing.css'
+import styles from './MemberLocationSharing.module.css'
 
 interface MemberLocationSharingProps {
   apiClient: MapApiClient
@@ -173,18 +173,18 @@ export default function MemberLocationSharing({
 
   return (
     <div className="location-sharing" aria-live="polite">
-      <label className="location-sharing__switch-row">
+      <label className={styles['location-sharing__switch-row']}>
         <input
           type="checkbox"
-          className="location-sharing__switch-input"
+          className={styles['location-sharing__switch-input']}
           checked={isSharing}
           onChange={(event) => handleToggleSharing(event.target.checked)}
         />
-        <span className="location-sharing__switch-slider" aria-hidden="true" />
-        <span className="location-sharing__switch-label">共有中</span>
+        <span className={styles['location-sharing__switch-slider']} aria-hidden="true" />
+        <span className={styles['location-sharing__switch-label']}>共有中</span>
       </label>
 
-      <label className="location-sharing__jam-row">
+      <label className={styles['location-sharing__jam-row']}>
         <input
           type="checkbox"
           checked={jamOutsideRadius}
@@ -194,7 +194,7 @@ export default function MemberLocationSharing({
       </label>
 
       {errorMessage && (
-        <p className="location-sharing__error" role="status">
+        <p className={styles['location-sharing__error']} role="status">
           {errorMessage}
         </p>
       )}
