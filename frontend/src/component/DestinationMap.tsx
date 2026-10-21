@@ -5,32 +5,10 @@ import { useRef, type MouseEvent as ReactMouseEvent } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import Map, { Layer, Marker, NavigationControl, Source } from 'react-map-gl/maplibre'
 import type { Destination, MapState, MemberStatus } from '../types/index'
+import { formatBearing, formatDistance, getStraightLineDistanceMetres } from '../utils/mapMath'
 import './DestinationMap.css'
 
 setWorkerUrl(mapLibreWorkerUrl)
-
-function getStraightLineDistanceMetres(from: Destination, to: Destination): number {
-  const earthRadiusMetres = 6_371_000
-  const toRadians = (degrees: number) => (degrees * Math.PI) / 180
-  const latitudeDelta = toRadians(to.lat - from.lat)
-  const longitudeDelta = toRadians(to.lng - from.lng)
-  const fromLatitude = toRadians(from.lat)
-  const toLatitude = toRadians(to.lat)
-  const haversine =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(longitudeDelta / 2) ** 2
-
-  return earthRadiusMetres * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
-}
-
-function formatDistance(metres: number): string {
-  return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`
-}
-
-function formatBearing(degrees: number | null | undefined): string | null {
-  if (degrees === null || degrees === undefined) return null
-  return ['北', '北東', '東', '南東', '南', '南西', '西', '北西'][Math.round(degrees / 45) % 8]
-}
 
 interface DestinationMapProps {
   state: MapState | null
