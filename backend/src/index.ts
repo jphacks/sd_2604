@@ -237,8 +237,8 @@ app.post('/api/rooms/:roomId/sync', async (c) => {
     ...current,
     id: body.userId,
     name: body.userName || current.name || '参加者',
-    lat: isWithin500m ? body.userLat : null,
-    lng: isWithin500m ? body.userLng : null,
+    lat: body.userLat,
+    lng: body.userLng,
     speed: body.speed,
     etaMinutes: body.etaMinutes ?? current.etaMinutes ?? null,
     paceIsEstimated: body.paceIsEstimated ?? current.paceIsEstimated ?? false,
@@ -277,51 +277,6 @@ app.post('/api/rooms/:roomId/delay', async (c) => {
   return c.json({
     success: true,
     members: Object.values(room.members),
-  });
-});
-
-app.post('/api/location/sync', async (c) => {
-  const body = await c.req.json<{
-    userId: string;
-    userName: string;
-    userLat: number;
-    userLng: number;
-    speed: number | null;
-    targetLat?: number;
-    targetLng?: number;
-    etaMinutes?: number | null;
-    paceIsEstimated?: boolean;
-    bearingDegrees?: number | null;
-    locationJammed?: boolean;
-  }>();
-
-  const targetLat = body.targetLat ?? destination?.lat ?? 38.2606;
-  const targetLng = body.targetLng ?? destination?.lng ?? 140.8824;
-  const distance = getDistanceMetres(body.userLat, body.userLng, targetLat, targetLng);
-  const isWithin500m = distance <= 500;
-  const nextMember: MemberStatus = {
-    id: body.userId,
-    name: body.userName,
-    delayMinutes: 0,
-    lat: isWithin500m ? body.userLat : null,
-    lng: isWithin500m ? body.userLng : null,
-    speed: body.speed,
-    etaMinutes: body.etaMinutes ?? null,
-    paceIsEstimated: body.paceIsEstimated ?? false,
-    bearingDegrees: body.bearingDegrees ?? null,
-    locationJammed: body.locationJammed ?? false,
-    isWithin500m,
-    status: distance <= 10 ? 'arrived' : 'on_the_way',
-    updatedAt: new Date().toISOString(),
-  };
-
-  membersStore[body.userId] = nextMember;
-
-  return c.json({
-    success: true,
-    distanceMetres: Math.round(distance),
-    isWithin500m,
-    members: Object.values(membersStore),
   });
 });
 
@@ -404,50 +359,6 @@ app.get('/api/rooms/:roomId/map-state', async (c) => {
     destinationAddress: room.destinationAddress ?? null,
     meetingTime: room.meetingTime,
     members: Object.values(room.members),
-  });
-});
-
-app.put('/api/destination', async (c) => {
-  const body = await c.req.json<{ lat: unknown; lng: unknown }>();
-
-  if (
-    typeof body.lat !== 'number' ||
-    typeof body.lng !== 'number' ||
-    !Number.isFinite(body.lat) ||
-    !Number.isFinite(body.lng) ||
-    body.lat < -90 ||
-    body.lat > 90 ||
-    body.lng < -180 ||
-    body.lng > 180
-  ) {
-    return c.json({ success: false, error: 'Invalid destination coordinates' }, 400);
-  }
-
-  destination = { lat: body.lat, lng: body.lng };
-  return c.json({ success: true, destination });
-});
-
-app.put('/api/meeting-time', async (c) => {
-  const body = await c.req.json<{ meetingTime: unknown }>();
-
-  if (body.meetingTime === null) {
-    meetingTime = null;
-    return c.json({ success: true, meetingTime });
-  }
-
-  if (typeof body.meetingTime !== 'string' || !Number.isFinite(Date.parse(body.meetingTime))) {
-    return c.json({ success: false, error: 'Invalid meeting time' }, 400);
-  }
-
-  meetingTime = new Date(body.meetingTime).toISOString();
-  return c.json({ success: true, meetingTime });
-});
-
-app.get('/api/map-state', (c) => {
-  return c.json({
-    destination,
-    meetingTime,
-    members: Object.values(membersStore),
   });
 });
 
