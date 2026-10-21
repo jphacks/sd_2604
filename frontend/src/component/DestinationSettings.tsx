@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Destination, DestinationInput } from '../types/index'
 import { geocodePlaceName } from '../utils/geocoding'
-import './DestinationSettings.css'
+import styles from './DestinationSettings.module.css'
 
 interface DestinationSettingsProps {
   destination: Destination | null
@@ -145,9 +145,12 @@ export default function DestinationSettings({
   }
 
   return (
-    <div className="destination-settings">
+    <div className={styles['destination-settings']}>
       <button
-        className={`destination-settings__map-btn${isOpen ? ' is-open' : ''}`}
+        className={[
+          styles['destination-settings__map-btn'],
+          isOpen && styles['is-open']
+        ].filter(Boolean).join(' ')}
         type="button"
         aria-expanded={isOpen}
         aria-label={isLocked ? 'オーナーのみ目的地を変更できます' : '目的地を再設定'}
@@ -162,20 +165,20 @@ export default function DestinationSettings({
       </button>
 
       {isOpen && (
-        <form className="destination-settings__panel" onSubmit={saveDestination}>
-          <div className="destination-settings__heading">
+        <form className={styles['destination-settings__panel']} onSubmit={saveDestination}>
+          <div className={styles['destination-settings__heading']}>
             <div>
-              <p className="destination-settings__eyebrow">DESTINATION</p>
+              <p className={styles['destination-settings__eyebrow']}>DESTINATION</p>
               <h2>目的地を再設定</h2>
             </div>
-            <button className="destination-settings__close" type="button" aria-label="閉じる" onClick={closeSettings}>
+            <button className={styles['destination-settings__close']} type="button" aria-label="閉じる" onClick={closeSettings}>
               ×
             </button>
           </div>
 
-          <label className="destination-settings__field">
+          <label className={styles['destination-settings__field']}>
             場所名
-            <div className="destination-settings__search-row">
+            <div className={styles['destination-settings__search-row']}>
               <input
                 type="text"
                 value={landmarkName}
@@ -185,7 +188,7 @@ export default function DestinationSettings({
               />
               <button
                 type="button"
-                className="destination-settings__geocode-btn"
+                className={styles['destination-settings__geocode-btn']}
                 onClick={() => void resolvePlaceAutomatically(landmarkName)}
                 disabled={isGeocoding || !landmarkName.trim()}
               >
@@ -194,7 +197,7 @@ export default function DestinationSettings({
             </div>
           </label>
 
-          <label className="destination-settings__field">
+          <label className={styles['destination-settings__field']}>
             住所・詳細
             <input
               type="text"
@@ -206,14 +209,17 @@ export default function DestinationSettings({
           </label>
 
           <button
-            className={`destination-settings__pick${isPickingOnMap ? ' is-active' : ''}`}
+            className={[
+              styles['destination-settings__pick'],
+              isPickingOnMap && styles['is-active']
+            ].filter(Boolean).join(' ')}
             type="button"
             onClick={() => onPickingChange(!isPickingOnMap)}
           >
             {isPickingOnMap ? '地図上の場所をタップしてください' : '地図上で場所を選ぶ'}
           </button>
 
-          <div className="destination-settings__coordinates">
+          <div className={styles['destination-settings__coordinates']}>
             <label>
               緯度
               <input
@@ -242,11 +248,11 @@ export default function DestinationSettings({
             </label>
           </div>
 
-          {geocodeError && <p className="destination-settings__error" role="alert">{geocodeError}</p>}
-          {saveError && <p className="destination-settings__error" role="alert">{saveError}</p>}
+          {geocodeError && <p className={styles['destination-settings__error']} role="alert">{geocodeError}</p>}
+          {saveError && <p className={styles['destination-settings__error']} role="alert">{saveError}</p>}
 
           <button
-            className="destination-settings__save"
+            className={styles['destination-settings__save']}
             type="submit"
             disabled={(!candidate && !landmarkName.trim()) || isSaving}
           >
