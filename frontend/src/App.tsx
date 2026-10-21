@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import CreateRoomPage from './component/CreateRoomPage'
+import JoinRoomPage from './component/JoinRoomPage'
 import { MapApiClient } from './component/MapApiClient'
 import MapFeature from './component/MapFeature'
 import { geocodePlaceName } from './utils/geocoding'
-import { getDeviceId, readRoomOwnerId, readRoomParticipant, writeRoomOwnerId, writeRoomParticipant } from './utils/storage'
+import { readRoomParticipant } from './utils/storage'
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'https://backend.yonu33.workers.dev').replace(/\/+$/, '')
 
@@ -103,44 +104,8 @@ export default function App({ roomInfo, participant }: AppProps) {
     setRoomIdInUrl(newRoomId)
   }
 
-  const handleJoinRoom = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setErrorMessage(null)
-
-    if (!roomId) return
-
-    const trimmedName = joinName.trim()
-    if (!trimmedName) {
-      setErrorMessage('名前を入力してください。')
-      return
-    }
-
-    setIsJoining(true)
-    try {
-      const participantId = getDeviceId()
-      const joined = await apiClient.joinRoom(roomId, { userId: participantId, userName: trimmedName })
-      const resolvedId = joined.userId ?? participantId
-      const resolvedName = joined.userName ?? trimmedName
-      const roomParticipant = { id: resolvedId, name: resolvedName }
-      const persistedOwnerId = joined.room?.ownerId ?? readRoomOwnerId(roomId)
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('meetpoint.participant-name', resolvedName)
-        window.localStorage.setItem('meetpoint-last-room-id', roomId)
-        writeRoomParticipant(roomId, roomParticipant)
-        if (persistedOwnerId) {
-          writeRoomOwnerId(roomId, persistedOwnerId)
-        }
-      }
-      setJoinedParticipant(roomParticipant)
-      setJoinName(resolvedName)
-      setRoomId(roomId)
-      setRoomIdInUrl(roomId)
-    } catch {
-      setErrorMessage('部屋に参加できませんでした。URLを確認してもう一度お試しください。')
-    } finally {
-      setIsJoining(false)
-    }
+  const handleJoinSuccess = (newParticipant: { id: string; name: string }) => {
+    setJoinedParticipant(newParticipant)
   }
 
   const roomParticipant = readRoomParticipant(roomId)
@@ -152,42 +117,11 @@ export default function App({ roomInfo, participant }: AppProps) {
 
   if (roomId) {
     return (
-      <div className="entry-page">
-        <div className="entry-card">
-          <div className="entry-brand">MEETPOINT</div>
-
-          <h1 className="entry-title entry-title--join">部屋に参加する</h1>
-          <p className="entry-lead">
-            参加するには、表示名を入力してください。<br />部屋ID: <strong>{roomId}</strong>
-          </p>
-
-          <form className="entry-form" onSubmit={handleJoinRoom}>
-            <label className="entry-field">
-              <span className="entry-field__label">あなたの名前</span>
-              <input
-                className="entry-field__input"
-                value={joinName}
-                onChange={(event) => setJoinName(event.target.value)}
-                placeholder="例: 佐藤さん"
-              />
-            </label>
-
-            {errorMessage && (
-              <p className="entry-error" role="alert">
-                {errorMessage}
-              </p>
-            )}
-
-            <button
-              className="entry-submit-btn"
-              type="submit"
-              disabled={isJoining || !joinName.trim()}
-            >
-              {isJoining ? '参加中...' : '部屋に参加'}
-            </button>
-          </form>
-        </div>
-      </div>
+      <JoinRoomPage 
+        roomId={roomId} 
+        apiClient={apiClient} 
+        onJoinSuccess={handleJoinSuccess} 
+      />
     )
   }
 
