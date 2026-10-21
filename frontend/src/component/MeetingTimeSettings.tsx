@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import './MeetingTimeSettings.css'
+import styles from './MeetingTimeSettings.module.css'
 
 interface MeetingTimeSettingsProps {
   meetingTime: string | null
@@ -75,9 +75,13 @@ export default function MeetingTimeSettings({
   }
 
   return (
-    <div className="meeting-time-settings">
+    <div className={styles['meeting-time-settings']}>
       <button
-        className={`meeting-time-settings__trigger is-${urgency}`}
+        className={[
+          styles['meeting-time-settings__trigger'],
+          urgency === 'soon' && styles['is-soon'],
+          urgency === 'overdue' && styles['is-overdue'],
+        ].filter(Boolean).join(' ')}
         type="button"
         aria-expanded={isOpen}
         title={isLocked ? 'オーナーのみ集合時刻を変更できます' : 'タップして集合時刻を再設定'}
@@ -88,12 +92,12 @@ export default function MeetingTimeSettings({
           setIsOpen((open) => !open)
         }}
       >
-        <span className="meeting-time-settings__label">集合時刻</span>
-        <strong className="meeting-time-settings__time">{formatTimeOnly(meetingTime)}</strong>
+        <span className={styles['meeting-time-settings__label']}>集合時刻</span>
+        <strong className={styles['meeting-time-settings__time']}>{formatTimeOnly(meetingTime)}</strong>
       </button>
 
       {isOpen && (
-        <form className="meeting-time-settings__panel" onSubmit={save}>
+        <form className={styles['meeting-time-settings__panel']} onSubmit={save}>
           <label htmlFor="meeting-time-input">集合日時を再設定</label>
           <input
             id="meeting-time-input"
@@ -102,22 +106,22 @@ export default function MeetingTimeSettings({
             onChange={(event) => setInputValue(event.target.value)}
             required
           />
-          {errorMessage && <p className="meeting-time-settings__error" role="alert">{errorMessage}</p>}
-          <div className="meeting-time-settings__actions">
+          {errorMessage && <p className={styles['meeting-time-settings__error']} role="alert">{errorMessage}</p>}
+          <div className={styles['meeting-time-settings__actions']}>
             <button type="button" onClick={() => setIsOpen(false)}>
               キャンセル
             </button>
             {meetingTime && !isLocked && (
               <button
                 type="button"
-                className="meeting-time-settings__clear"
+                className={styles['meeting-time-settings__clear']}
                 onClick={() => void clearTime()}
                 disabled={isSaving}
               >
                 解除
               </button>
             )}
-            <button type="submit" className="meeting-time-settings__save" disabled={isLocked || !inputValue || isSaving}>
+            <button type="submit" className={styles['meeting-time-settings__save']} disabled={isLocked || !inputValue || isSaving}>
               {isSaving ? '保存中...' : isLocked ? 'オーナーのみ変更可能' : '保存'}
             </button>
           </div>

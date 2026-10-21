@@ -1,0 +1,131 @@
+.entry-page {
+  min-height: 100vh;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: #edf0e8;
+  font-family: "Avenir Next", "Hiragino Kaku Gothic ProN", sans-serif;
+}
+
+.entry-card {
+  width: 100%;
+  max-width: 620px;
+  padding: 28px 24px 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 8px 30px rgba(24, 43, 37, 0.08);
+  border: 1px solid rgba(127, 138, 128, 0.25);
+}
+
+.entry-brand {
+  margin-bottom: 20px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #22352f;
+  font-size: 24px;
+}
+
+.entry-title {
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+
+.entry-title--join {
+  margin: 0 0 12px;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+}
+
+.entry-title--create {
+  margin: 0 0 24px;
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+}
+
+.entry-lead {
+  margin: 0 0 24px;
+  color: #47615d;
+  font-size: 18px;
+}
+
+.entry-note {
+  margin: 0;
+  color: #47615d;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.entry-form {
+  display: grid;
+  gap: 18px;
+}
+
+.entry-field {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+  color: #22352f;
+}
+
+.entry-field__label {
+  font-size: 18px;
+}
+
+.entry-field__input {
+  width: 100%;
+  min-width: 0;
+  padding: 16px 14px;
+  border-radius: 12px;
+  border: 1px solid #c8cfc7;
+  background: rgba(255, 255, 255, 0.5);
+  font-size: clamp(16px, 5vw, 24px);
+  font-weight: 700;
+  outline: none;
+}
+
+.entry-search-btn {
+  width: 100%;
+  min-width: 0;
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 1px solid #dbe1d7;
+  background: #dfe7e1;
+  color: #22352f;
+  font-size: clamp(15px, 4vw, 18px);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.entry-search-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.entry-error {
+  margin: 0;
+  color: #d9553d;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.entry-submit-btn {
+  padding: 18px 18px;
+  border-radius: 12px;
+  border: none;
+  background: #2a6052;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.entry-submit-btn--create {
+  margin-top: 8px;
+}
+
+.entry-submit-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

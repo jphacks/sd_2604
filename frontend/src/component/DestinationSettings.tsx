@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import './DestinationSettings.css'
-import type { Destination, DestinationInput } from './mapTypes'
+import type { Destination, DestinationInput } from '../types/index'
+import { geocodePlaceName } from '../utils/geocoding'
+import styles from './DestinationSettings.module.css'
 
 interface DestinationSettingsProps {
   destination: Destination | null
@@ -17,12 +18,6 @@ interface DestinationSettingsProps {
   onSave: (destination: DestinationInput) => Promise<boolean>
 }
 
-type GeocodeResult = {
-  lat: number
-  lng: number
-  address: string
-}
-
 function parseCoordinates(latitude: string, longitude: string): Destination | null {
   if (!latitude.trim() || !longitude.trim()) return null
 
@@ -32,68 +27,6 @@ function parseCoordinates(latitude: string, longitude: string): Destination | nu
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
 
   return { lat, lng }
-}
-
-function normalizePlaceText(value: string): string {
-  return value
-    .normalize('NFKC')
-    .replace(/[\s\u3000]+/g, '')
-    .replace(/[‐‑‒–—−]/g, '-')
-    .trim()
-}
-
-async function geocodePlaceName(placeName: string): Promise<GeocodeResult | null> {
-  const cleaned = placeName.trim()
-  if (!cleaned) return null
-
-  const normalizedQuery = normalizePlaceText(cleaned)
-  const exactOverride: Record<string, { lat: number; lng: number; address: string }> = {
-    '仙台駅': { lat: 38.2606, lng: 140.8824, address: '宮城県仙台市青葉区本町3丁目' },
-  }
-
-  const override = exactOverride[normalizedQuery]
-  if (override) return override
-
-  const url = new URL('https://nominatim.openstreetmap.org/search')
-  url.searchParams.set('q', cleaned)
-  url.searchParams.set('format', 'jsonv2')
-  url.searchParams.set('limit', '10')
-  url.searchParams.set('countrycodes', 'jp')
-  url.searchParams.set('accept-language', 'ja')
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      'Accept-Language': 'ja',
-      'User-Agent': 'MeetPointApp/1.0',
-    },
-  })
-
-  if (!response.ok) return null
-
-  const candidates = (await response.json()) as Array<{
-    lat?: string
-    lon?: string
-    display_name?: string
-    address?: { country_code?: string }
-  }>
-
-  if (!Array.isArray(candidates) || candidates.length === 0) return null
-
-  const preferred = candidates.find((candidate) => {
-    if (!candidate.lat || !candidate.lon) return false
-    if (candidate.address?.country_code && candidate.address.country_code !== 'jp') return false
-
-    const directDisplayName = normalizePlaceText(candidate.display_name ?? '')
-    return directDisplayName === normalizedQuery || directDisplayName.startsWith(normalizedQuery)
-  })
-
-  if (!preferred || !preferred.lat || !preferred.lon) return null
-
-  return {
-    lat: Number(preferred.lat),
-    lng: Number(preferred.lon),
-    address: preferred.display_name ?? cleaned,
-  }
 }
 
 export default function DestinationSettings({
@@ -212,9 +145,12 @@ export default function DestinationSettings({
   }
 
   return (
-    <div className="destination-settings">
+    <div className={styles['destination-settings']}>
       <button
-        className={`destination-settings__map-btn${isOpen ? ' is-open' : ''}`}
+        className={[
+          styles['destination-settings__map-btn'],
+          isOpen && styles['is-open']
+        ].filter(Boolean).join(' ')}
         type="button"
         aria-expanded={isOpen}
         aria-label={isLocked ? 'オーナーのみ目的地を変更できます' : '目的地を再設定'}
@@ -229,20 +165,20 @@ export default function DestinationSettings({
       </button>
 
       {isOpen && (
-        <form className="destination-settings__panel" onSubmit={saveDestination}>
-          <div className="destination-settings__heading">
+        <form className={styles['destination-settings__panel']} onSubmit={saveDestination}>
+          <div className={styles['destination-settings__heading']}>
             <div>
-              <p className="destination-settings__eyebrow">DESTINATION</p>
+              <p className={styles['destination-settings__eyebrow']}>DESTINATION</p>
               <h2>目的地を再設定</h2>
             </div>
-            <button className="destination-settings__close" type="button" aria-label="閉じる" onClick={closeSettings}>
+            <button className={styles['destination-settings__close']} type="button" aria-label="閉じる" onClick={closeSettings}>
               ×
             </button>
           </div>
 
-          <label className="destination-settings__field">
+          <label className={styles['destination-settings__field']}>
             場所名
-            <div className="destination-settings__search-row">
+            <div className={styles['destination-settings__search-row']}>
               <input
                 type="text"
                 value={landmarkName}
@@ -252,7 +188,7 @@ export default function DestinationSettings({
               />
               <button
                 type="button"
-                className="destination-settings__geocode-btn"
+                className={styles['destination-settings__geocode-btn']}
                 onClick={() => void resolvePlaceAutomatically(landmarkName)}
                 disabled={isGeocoding || !landmarkName.trim()}
               >
@@ -261,7 +197,7 @@ export default function DestinationSettings({
             </div>
           </label>
 
-          <label className="destination-settings__field">
+          <label className={styles['destination-settings__field']}>
             住所・詳細
             <input
               type="text"
@@ -273,14 +209,17 @@ export default function DestinationSettings({
           </label>
 
           <button
-            className={`destination-settings__pick${isPickingOnMap ? ' is-active' : ''}`}
+            className={[
+              styles['destination-settings__pick'],
+              isPickingOnMap && styles['is-active']
+            ].filter(Boolean).join(' ')}
             type="button"
             onClick={() => onPickingChange(!isPickingOnMap)}
           >
             {isPickingOnMap ? '地図上の場所をタップしてください' : '地図上で場所を選ぶ'}
           </button>
 
-          <div className="destination-settings__coordinates">
+          <div className={styles['destination-settings__coordinates']}>
             <label>
               緯度
               <input
@@ -309,11 +248,11 @@ export default function DestinationSettings({
             </label>
           </div>
 
-          {geocodeError && <p className="destination-settings__error" role="alert">{geocodeError}</p>}
-          {saveError && <p className="destination-settings__error" role="alert">{saveError}</p>}
+          {geocodeError && <p className={styles['destination-settings__error']} role="alert">{geocodeError}</p>}
+          {saveError && <p className={styles['destination-settings__error']} role="alert">{saveError}</p>}
 
           <button
-            className="destination-settings__save"
+            className={styles['destination-settings__save']}
             type="submit"
             disabled={(!candidate && !landmarkName.trim()) || isSaving}
           >

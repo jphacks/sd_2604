@@ -1,4 +1,4 @@
-import type { Destination, LocationSyncPayload } from './mapTypes'
+import type { Destination, LocationSyncPayload } from '../types/index'
 
 interface PositionSample {
   latitude: number

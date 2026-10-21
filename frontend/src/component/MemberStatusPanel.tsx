@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import type { Destination, MemberStatus } from '../types/index'
 import { formatDistance, getStraightLineDistanceMetres } from './mapMath'
-import type { Destination, MemberStatus } from './mapTypes'
 
 interface MemberStatusPanelProps {
   members?: MemberStatus[]

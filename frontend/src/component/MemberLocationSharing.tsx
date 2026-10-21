@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Destination } from '../types/index'
+import { getDeviceId, getStoredParticipantName, writeRoomParticipant } from '../utils/storage'
 import type { MapApiClient } from './MapApiClient'
-import type { Destination } from './mapTypes'
 import { MemberLocationService } from './MemberLocationService'
-import './MemberLocationSharing.css'
+import styles from './MemberLocationSharing.module.css'
 
 interface MemberLocationSharingProps {
   apiClient: MapApiClient
@@ -10,25 +11,6 @@ interface MemberLocationSharingProps {
   roomId?: string | null
   userId?: string
   userName?: string
-}
-
-function getDeviceId(): string {
-  if (typeof window === 'undefined') return 'unknown-device'
-
-  const existing = window.localStorage.getItem('meetpoint.device-id')
-  if (existing && existing.trim()) return existing
-
-  const fingerprint = [
-    window.navigator.userAgent,
-    window.navigator.language,
-    window.screen.width,
-    window.screen.height,
-    window.screen.colorDepth,
-  ].join('|')
-
-  const next = btoa(fingerprint).replace(/[^a-zA-Z0-9]/g, '').slice(0, 32) || `device-${Date.now()}`
-  window.localStorage.setItem('meetpoint.device-id', next)
-  return next
 }
 
 function getParticipantId(roomId?: string | null): string {
@@ -50,39 +32,6 @@ function getParticipantId(roomId?: string | null): string {
     return generated
   } catch {
     return roomId ? `${getDeviceId()}-${roomId}` : `${getDeviceId()}-global`
-  }
-}
-
-function getStoredParticipantName(defaultName: string, roomId?: string | null): string {
-  const storageKey = roomId ? `meetpoint.room-participant.${roomId}` : 'meetpoint.participant-name'
-
-  try {
-    const saved = localStorage.getItem(storageKey)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as { name?: string }
-        if (typeof parsed.name === 'string' && parsed.name.trim()) return parsed.name.trim()
-      } catch {
-        // ignore malformed data
-      }
-    }
-
-    const globalName = localStorage.getItem('meetpoint.participant-name')
-    if (globalName && globalName.trim()) return globalName.trim()
-  } catch {
-    // ignore storage failures
-  }
-
-  return defaultName
-}
-
-function writeRoomParticipant(roomId: string | null | undefined, participant: { id: string; name: string }) {
-  if (!roomId) return
-
-  try {
-    localStorage.setItem(`meetpoint.room-participant.${roomId}`, JSON.stringify({ id: participant.id, name: participant.name }))
-  } catch {
-    // ignore storage failures
   }
 }
 
@@ -224,18 +173,18 @@ export default function MemberLocationSharing({
 
   return (
     <div className="location-sharing" aria-live="polite">
-      <label className="location-sharing__switch-row">
+      <label className={styles['location-sharing__switch-row']}>
         <input
           type="checkbox"
-          className="location-sharing__switch-input"
+          className={styles['location-sharing__switch-input']}
           checked={isSharing}
           onChange={(event) => handleToggleSharing(event.target.checked)}
         />
-        <span className="location-sharing__switch-slider" aria-hidden="true" />
-        <span className="location-sharing__switch-label">共有中</span>
+        <span className={styles['location-sharing__switch-slider']} aria-hidden="true" />
+        <span className={styles['location-sharing__switch-label']}>共有中</span>
       </label>
 
-      <label className="location-sharing__jam-row">
+      <label className={styles['location-sharing__jam-row']}>
         <input
           type="checkbox"
           checked={jamOutsideRadius}
@@ -245,7 +194,7 @@ export default function MemberLocationSharing({
       </label>
 
       {errorMessage && (
-        <p className="location-sharing__error" role="status">
+        <p className={styles['location-sharing__error']} role="status">
           {errorMessage}
         </p>
       )}
