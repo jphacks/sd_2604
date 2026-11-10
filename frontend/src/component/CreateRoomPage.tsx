@@ -117,7 +117,7 @@ export default function CreateRoomPage({ apiClient, onRoomCreated }: CreateRoomP
     <div className={styles['entry-page']}>
       <div className={styles['entry-card']}>
         <div className={styles['entry-brand']}>MEETPOINT</div>
-        <h1 className={styles['entry-title entry-title--create']}>新しい部屋を作る</h1>
+        <h1 className={`${styles['entry-title']} ${styles['entry-title--create']}`}>新しい部屋を作る</h1>
 
         <form className={styles['entry-form']} onSubmit={handleCreateRoom}>
           <label className={styles['entry-field']}>
