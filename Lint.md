@@ -1,10 +1,6 @@
-# Lint & 静的解析ガイドライン (`Lint.md`)
+# Lint
 
-本ドキュメントは、プロジェクト「もうつく」における**コードの冗長性・設計の破綻・AIによる意図しない改変の再発防止**を目的とした、Lint・静的解析ツールの構成・運用ルールです。
-
----
-
-## 1. 導入している静的解析ツールと構成
+## 導入している静的解析ツールと構成
 
 本プロジェクトでは、フロントエンド・バックエンドそれぞれに以下のツールチェーンを配備しています。
 
@@ -36,7 +32,7 @@ flowchart LR
 
 ---
 
-## 2. 実行コマンド一覧
+## 実行コマンド一覧
 
 日常の開発や PR 作成前、AI にコード生成・リファクタリングを指示した直後は、以下のコマンドで整合性を検証してください。
 
@@ -72,24 +68,21 @@ npm run lint           # eslint .
 
 ---
 
-## 3. 防ぐべき問題と設定ルールの詳細
-
-AI や複数人開発で発生しやすい「設計の破綻」「冗長性の混入」を防ぐため、以下のルールを自動検知対象としています。
-
-### 3.1 CSS Modules クラス名参照の不整合防止 (`eslint-plugin-css-modules-next`)
+## 対象
+### CSS Modules クラス名参照の不整合防止 (`eslint-plugin-css-modules-next`)
 - **検知ルール**: `'css-modules/no-undefined-class': 'error'`
 - **防止対象**:
   - `styles['entry-title entry-title--create']` のようにスペース区切りの複数クラスを 1 つのキーとして参照し、クラス適用が消滅するバグ。
   - CSS 側に定義されていないクラス名を TSX 側で参照するタイポ。
   - CSS を更新してクラス名を変更した際、TSX 側の書き換え漏れ。
 
-### 3.2 アーキテクチャ境界の維持 (`no-restricted-globals`)
+### アーキテクチャ境界の維持 (`no-restricted-globals`)
 - **検知ルール**: `'no-restricted-globals': ['error', { name: 'localStorage', message: '...' }]`
 - **防止対象**:
   - コンポーネントが `utils/storage.ts` の共通層を迂回して `localStorage.setItem` を直接呼び出し、キー名や保存ロジックが散乱する問題。
   - ※ `src/utils/storage.ts` のみ明示的にこのルールを除外（overrides）しています。
 
-### 3.3 型安全とバンドル最適化 (`@typescript-eslint/*`)
+### 型安全とバンドル最適化 (`@typescript-eslint/*`)
 - **検知ルール**:
   - `'@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }]`
     - 型の import に `import type { ... }` を強制。トランスパイル時のランタイムコード混入を防ぎ、循環依存や Vite でのトランスパイル不整合を防止。
@@ -98,14 +91,14 @@ AI や複数人開発で発生しやすい「設計の破綻」「冗長性の�
   - `'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }]`
     - 未使用の変数・関数・import をエラーとし、不要コードの蓄積を防止（意図的な引数は `_` プレフィックスを強制）。
 
-### 3.4 不要ファイル・デッドコードの検出 (`knip`)
+### 不要ファイル・デッドコードの検出 (`knip`)
 - **検知対象**:
   - ハッカソン期間中に発生した「中身を空（0 byte）にしたまま放置されたファイル（`mapTypes.ts`）」や、リファクタリングで使われなくなった旧ユーティリティ（旧 `mapMath.ts`）。
   - package.json に残された未使用の devDependencies / dependencies。
 
 ---
 
-## 4. AI 支援開発におけるチェックフロー
+## AI 支援開発におけるチェックフロー
 
 AI を用いて新規コードの実装やリファクタリングを行った際は、コミット前に必ず以下の順序で静的解析を実行してください。
 
