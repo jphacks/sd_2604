@@ -43,7 +43,7 @@ export default function MemberLocationSharing({
   userName = '自分',
 }: MemberLocationSharingProps) {
   const [participantId] = useState(userId ?? getParticipantId(roomId))
-  const [participantName, setParticipantName] = useState(() => getStoredParticipantName(userName || '自分', roomId))
+  const displayName = (userName || '自分').trim() || getStoredParticipantName('自分', roomId)
   const [isSharing, setIsSharing] = useState(true)
   const [jamOutsideRadius, setJamOutsideRadius] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -56,21 +56,17 @@ export default function MemberLocationSharing({
   }, [jamOutsideRadius])
 
   useEffect(() => {
-    const nextName = (userName || '自分').trim()
-    if (nextName) {
-      setParticipantName(nextName)
+    if (displayName) {
       try {
-        localStorage.setItem('meetpoint.participant-name', nextName)
+        localStorage.setItem('meetpoint.participant-name', displayName)
         if (roomId) {
-          writeRoomParticipant(roomId, { id: participantId, name: nextName })
+          writeRoomParticipant(roomId, { id: participantId, name: displayName })
         }
       } catch {
         // ignore storage failures
       }
     }
-  }, [participantId, roomId, userName])
-
-  const displayName = participantName.trim() || '自分'
+  }, [displayName, participantId, roomId])
 
   useEffect(() => {
     if (!isSharing || destinationLat === undefined || destinationLng === undefined) return
@@ -172,7 +168,7 @@ export default function MemberLocationSharing({
   }
 
   return (
-    <div className="location-sharing" aria-live="polite">
+    <div className={styles['location-sharing']} aria-live="polite">
       <label className={styles['location-sharing__switch-row']}>
         <input
           type="checkbox"
