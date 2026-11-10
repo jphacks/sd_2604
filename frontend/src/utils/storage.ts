@@ -44,6 +44,7 @@ export function readRoomParticipant(roomId: string | null | undefined): RoomPart
       return { id: parsed.id, name: parsed.name.trim() }
     }
   } catch {
+    // ignore malformed data
   }
   return null
 }
