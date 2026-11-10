@@ -101,6 +101,12 @@
   font-size: 11px;
 }
 
+.meeting-time-settings__actions .meeting-time-settings__clear {
+  border-color: #d9e0d9;
+  background: #fffefa;
+  color: #b64231;
+}
+
 .meeting-time-settings__actions .meeting-time-settings__save {
   border-color: #237765;
   background: #237765;

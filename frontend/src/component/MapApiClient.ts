@@ -1,4 +1,4 @@
-import type { Destination, DestinationInput, LocationSyncPayload, MapState } from './mapTypes'
+import type { Destination, DestinationInput, LocationSyncPayload, MapState } from '../types/index'
 
 export interface CreateRoomRequest {
   title: string

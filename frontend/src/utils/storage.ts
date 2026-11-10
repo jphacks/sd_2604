@@ -44,6 +44,7 @@ export function readRoomParticipant(roomId: string | null | undefined): RoomPart
       return { id: parsed.id, name: parsed.name.trim() }
     }
   } catch {
+    // ignore malformed data
   }
   return null
 }
@@ -83,4 +84,15 @@ export function getStoredParticipantName(fallback: string = '自分', roomId?: s
 export function saveLastParticipantName(name: string): void {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(KEYS.PARTICIPANT_NAME, name.trim())
+}
+
+// 参加者IDの解決
+export function getOrCreateParticipantId(roomId?: string | null): string {
+  if (typeof window === 'undefined') return 'unknown-user'
+
+  const participant = readRoomParticipant(roomId)
+  if (participant?.id) return participant.id
+
+  const deviceId = getDeviceId()
+  return roomId ? `${deviceId}-${roomId}` : `${deviceId}-global`
 }

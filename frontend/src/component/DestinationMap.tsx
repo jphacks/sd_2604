@@ -129,7 +129,6 @@ export default function DestinationMap({
         <Marker longitude={destination.lng} latitude={destination.lat} anchor="bottom">
           <div className={[
             styles['map-marker'],
-            styles['map-marker--destination'],
             isPickingOnMap && styles['map-marker--transparent'],
           ].filter(Boolean).join(' ')} aria-label="目的地">
             <span className={styles['map-marker__label']}>目的地</span>
@@ -142,7 +141,6 @@ export default function DestinationMap({
           <div
             className={[
               styles['map-marker'],
-              styles['map-marker--member'],
               member.locationJammed && styles['map-marker--jammed'],
               isPickingOnMap && styles['map-marker--transparent'],
             ].filter(Boolean).join(' ')}
