@@ -40,9 +40,6 @@ interface Room {
 }
 
 const roomsStore: Record<string, Room> = {};
-const membersStore: Record<string, MemberStatus> = {};
-let destination: { lat: number; lng: number } | null = null;
-let meetingTime: string | null = null;
 
 async function getRoomById(roomId: string, env?: CloudflareBindings): Promise<Room | undefined> {
   if (env?.meetpoint_rooms) {
